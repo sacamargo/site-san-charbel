@@ -39,7 +39,6 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 Los textos de sacramentos, oración y biografía se mantienen versionados en el repositorio.
 
 La confirmación por correo significa "recibimos tu solicitud". La fecha y disponibilidad deben ser confirmadas posteriormente por la parroquia.
-
 ## Fuera del MVP
 
 - Donaciones en línea.
@@ -72,7 +71,6 @@ La confirmación por correo significa "recibimos tu solicitud". La fecha y dispo
 - Horarios y contacto tienen fuente editable y fecha de revisión.
 - No hay información parroquial inventada; el contenido está aprobado.
 - Todas las tablas expuestas tienen RLS y políticas revisadas.
-
 ## Entornos
 
 - DEV: `san-charbel-dev`, utilizado para desarrollo y datos de prueba.
