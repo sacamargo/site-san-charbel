@@ -11,6 +11,7 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - Horarios y contacto son las páginas de mayor prioridad.
 - En el contexto hispano, sacramentos significa principalmente requisitos y documentos.
 - La agenda será una lista cronológica editable; no se construirá un calendario complejo.
+- Google Calendar será la fuente de verdad de la agenda; la web lo consumirá en solo lectura.
 - El contenido estático no se conecta a Supabase innecesariamente.
 
 ## MVP acordado
@@ -20,7 +21,7 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - Inicio con horarios resumidos, evento destacado y accesos principales.
 - Horarios de misas y servicios, con avisos especiales.
 - Contacto, ubicación, teléfono, WhatsApp, correo y despacho.
-- Agenda de eventos y anuncios como lista cronológica.
+- Agenda de eventos y anuncios como lista cronológica leída desde Google Calendar.
 - Información introductoria de San Chárbel.
 - Sacramentos: índice y fichas de requisitos validados.
 - Solicitud de reserva de sacramento con confirmación de recepción por correo.
@@ -28,8 +29,8 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 ### Administración
 
 - Supabase Auth para administradores.
-- CRUD de eventos, publicación, destacados y vencimiento.
-- Flyers en Supabase Storage.
+- Administración de eventos directamente en un calendario dedicado de Google, fuera del panel de la web.
+- Flyers mediante enlaces o Storage, según la solución visual que validemos.
 - Actualización de horarios, servicios y contacto.
 - Revisión administrativa de solicitudes de sacramentos y cambio de estado.
 
@@ -51,17 +52,18 @@ La confirmación por correo significa "recibimos tu solicitud". La fecha y dispo
 
 1. Fundación: layout, navegación, estilos, SEO y datos validados.
 2. Información crítica: `/horarios` y `/contacto`.
-3. Producto central: `/agenda` con eventos y flyers desde Supabase.
+3. Producto central: `/agenda` leyendo un calendario público de Google en modo lectura.
 4. Solicitudes de sacramentos y correo de confirmación.
 5. Contenido diferencial: `/san-charbel` y sacramentos.
 6. Inicio compuesto con enlaces funcionales y eventos vigentes.
-7. Operación: Auth, RLS, Storage, Edge Function y separación DEV/PROD.
+7. Operación: Auth, RLS, Storage, Edge Function, Calendar API y separación DEV/PROD.
 
 ## Criterios de salida del MVP
 
 - Una persona encuentra el horario de misa desde un celular rápidamente.
 - Una persona encuentra la dirección y puede escribir por WhatsApp.
 - Un administrador publica un evento con flyer, fecha, lugar y contacto.
+- Un evento aprobado en Google Calendar aparece en la agenda pública sin duplicar su carga manual en el sitio.
 - Una persona puede enviar una solicitud de sacramento y recibe confirmación de recepción.
 - Un administrador puede revisar la solicitud sin hacerla visible públicamente.
 - Los eventos vencidos no aparecen como próximos.
