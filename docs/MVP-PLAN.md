@@ -10,14 +10,14 @@ Resolver primero: horarios, contacto, próximos eventos, requisitos de sacrament
 
 | Área | Primera versión | Fuente |
 | --- | --- | --- |
-| Inicio | Horarios resumidos, evento destacado y accesos principales | Mixto |
+| Inicio | Horarios resumidos, eventos destacados, galería estática y accesos principales | Mixto |
 | Horarios | Misas, confesiones, adoración, misa a San Chárbel y despacho | Supabase |
 | Contacto | Dirección, referencias, mapa, teléfono, WhatsApp y correo | Supabase/configuración |
-| Agenda | Lista cronológica de eventos vigentes | Google Calendar, solo lectura |
+| Agenda | Vista mensual y lista de eventos vigentes | Google Calendar, solo lectura |
 | San Chárbel | Resumen biográfico y oración validada | Repositorio |
 | Sacramentos | Requisitos, documentos, pasos, solicitud y contacto | Repositorio + Supabase |
 
-La agenda no será un calendario mensual. El administrador publica eventos y el sitio muestra los próximos por fecha.
+La agenda tendrá una vista mensual de solo lectura y una lista de próximos eventos. El administrador publica eventos directamente en Google Calendar y el sitio los muestra por fecha.
 
 ## Panel administrativo mínimo
 
@@ -25,10 +25,13 @@ La agenda no será un calendario mensual. El administrador publica eventos y el 
 - La iglesia crea, edita y aprueba eventos directamente en un calendario dedicado de Google.
 - La web consulta el calendario público y muestra eventos vigentes ordenados por fecha.
 - El sitio no tendrá CRUD de eventos en el MVP.
+- La agenda pública tendrá una vista mensual de solo lectura y una vista de lista para los próximos eventos.
 - CRUD de horarios, servicios y contacto.
 - Bandeja privada de solicitudes de sacramentos.
 - Cambio de estado y notas internas para cada solicitud.
 - Envío de correo de confirmación de recepción.
+
+La galería de fotos de la parroquia será estática y versionada junto con el sitio. No tendrá CMS ni gestión desde Supabase en el MVP.
 
 ## Modelo de datos inicial
 
@@ -55,7 +58,7 @@ Horarios, servicios, contacto, ubicación, datos validados, SEO básico y rendim
 
 - Crear un calendario dedicado de Google para la parroquia.
 - Configurarlo como calendario público con solo información segura para visitantes.
-- Leer eventos desde Google Calendar API o feed público y renderizarlos desde Astro.
+- Leer eventos desde Google Calendar API o feed público y renderizarlos desde Astro en una vista mensual y una lista de próximos eventos.
 - Aplicar caché para no bloquear la página ni depender de una llamada en cada interacción.
 - Validar cómo se mostrarán flyers: enlace en la descripción o Storage asociado por ID de evento.
 
@@ -77,6 +80,7 @@ San Chárbel, oración validada, sacramentos y requisitos reales, más el inicio
 
 - No usar formularios públicos genéricos en el MVP. La excepción es la solicitud específica de sacramentos, con campos mínimos, consentimiento y política de privacidad.
 - No duplicar en Supabase los eventos que la parroquia ya administra en Google Calendar.
+- No crear un CMS para la galería: sus fotos serán contenido estático del repositorio.
 - No usar el calendario personal de una persona: crear un calendario dedicado de la parroquia.
 - Publicar solo títulos, fechas, lugares y descripciones que no contengan datos privados.
 - El correo automático confirma recepción, no confirma disponibilidad ni aprobación de la reserva.
@@ -89,7 +93,7 @@ San Chárbel, oración validada, sacramentos y requisitos reales, más el inicio
 
 ## Fuera del MVP
 
-Donaciones en línea, peticiones de oración, inscripciones generales, noticias como CMS, galería administrable, testimonios, streaming, calendario avanzado, integración de escritura con Google Calendar y múltiples roles.
+Donaciones en línea, peticiones de oración, inscripciones generales, noticias como CMS, galería administrable, testimonios, streaming, integración de escritura con Google Calendar y múltiples roles. La vista mensual de la agenda sí forma parte del MVP, pero seguirá siendo de solo lectura.
 
 ## Criterio de éxito
 

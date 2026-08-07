@@ -10,8 +10,9 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - Cada página debe funcionar como entrada independiente desde Google.
 - Horarios y contacto son las páginas de mayor prioridad.
 - En el contexto hispano, sacramentos significa principalmente requisitos y documentos.
-- La agenda será una lista cronológica editable; no se construirá un calendario complejo.
+- La agenda tendrá una vista mensual y una lista cronológica, ambas de solo lectura; Google Calendar será la fuente de verdad y no se construirá un CRUD propio de eventos.
 - Google Calendar será la fuente de verdad de la agenda; la web lo consumirá en solo lectura.
+- La galería de fotos será estática, versionada en el repositorio y sin CMS en el MVP.
 - El contenido estático no se conecta a Supabase innecesariamente.
 
 ## MVP acordado
@@ -21,7 +22,8 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - Inicio con horarios resumidos, evento destacado y accesos principales.
 - Horarios de misas y servicios, con avisos especiales.
 - Contacto, ubicación, teléfono, WhatsApp, correo y despacho.
-- Agenda de eventos y anuncios como lista cronológica leída desde Google Calendar.
+- Agenda de eventos y anuncios con vista mensual y lista cronológica leídas desde Google Calendar.
+- Collage estático de momentos de la parroquia: misas, iglesia y comunidad.
 - Información introductoria de San Chárbel.
 - Sacramentos: índice y fichas de requisitos validados.
 - Solicitud de reserva de sacramento con confirmación de recepción por correo.
@@ -44,8 +46,8 @@ La confirmación por correo significa "recibimos tu solicitud". La fecha y dispo
 - Formularios públicos genéricos que almacenen datos personales.
 - Peticiones de oración, por su posible contenido sensible.
 - Noticias como módulo separado.
-- Calendario mensual complejo; la agenda será una lista.
-- Galería administrable completa.
+- Calendario avanzado con edición propia o escritura hacia Google Calendar; la vista mensual de solo lectura sí forma parte del MVP.
+- Galería administrable completa. La galería estática del sitio sí forma parte del MVP.
 - Testimonios, streaming y aplicación móvil.
 
 ## Orden de implementación
