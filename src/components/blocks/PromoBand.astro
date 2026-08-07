@@ -1,0 +1,138 @@
+---
+/**
+ * PromoBand — Sistema de diseño §6.10
+ *
+ * Banda a ancho completo con fondo --color-bg-alt y --radius-lg. Visual a la
+ * izquierda (retrato circular con anillo dorado, o icono) + texto + botón a la
+ * derecha. Marca de agua vegetal al 6 % en el extremo opuesto. En móvil se
+ * apila y se centra.
+ *
+ * Tres usos: el bloque devocional de San Chárbel, la banda de donación y el
+ * CTA de cierre que §7.5 exige al final de toda página.
+ */
+import Button from '@/components/ui/Button.astro';
+import IconCircle from '@/components/ui/IconCircle.astro';
+import ImagePlaceholder from './ImagePlaceholder.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import type { IconName } from '@/components/ui/icons';
+
+interface Props {
+  titulo: string;
+  /** Nivel semántico; el tamaño visual no cambia (§2.3). */
+  as?: 'h2' | 'h3';
+  /** Retrato circular con anillo dorado. Texto del marcador mientras no haya foto. */
+  retratoPendiente?: string;
+  /** Alternativa al retrato: icono circular grande. */
+  icono?: IconName;
+  botonTexto: string;
+  botonHref: string;
+  botonIcono?: IconName;
+  watermark?: boolean;
+  class?: string;
+}
+
+const {
+  titulo,
+  as: Tag = 'h2',
+  retratoPendiente,
+  icono,
+  botonTexto,
+  botonHref,
+  botonIcono,
+  watermark = true,
+  class: className,
+} = Astro.props;
+---
+
+<div class:list={['promo', className]}>
+  {watermark && <Watermark position="bottom-right" size={220} />}
+  {
+    retratoPendiente && (
+      <div class="promo__portrait">
+        <ImagePlaceholder ratio="1/1" label={retratoPendiente} rounded="full" tone="light" />
+      </div>
+    )
+  }
+  {icono && !retratoPendiente && <IconCircle name={icono} size={72} class="promo__icon" />}
+
+  <div class="promo__body">
+    <Tag class="t-h2 promo__title">{titulo}</Tag>
+    <div class="promo__text t-body">
+      <slot />
+    </div>
+  </div>
+
+  <div class="promo__action">
+    <Button variant="primary" size="lg" href={botonHref} icon={botonIcono}>
+      {botonTexto}
+    </Button>
+  </div>
+</div>
+
+<style>
+  .promo {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-24);
+
+    padding: var(--space-band-pad);
+    background-color: var(--color-bg-alt);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  /* Retrato circular con anillo dorado (§6.10). */
+  .promo__portrait {
+    inline-size: 128px;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    padding: 4px;
+    background-color: var(--color-accent);
+  }
+
+  .promo__icon {
+    flex-shrink: 0;
+  }
+
+  .promo__body {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .promo__text {
+    margin-block-start: var(--space-12);
+    max-inline-size: var(--measure);
+    color: var(--text-700);
+  }
+
+  .promo__action {
+    flex-shrink: 0;
+  }
+
+  /* El contenido siempre por encima de la marca de agua. */
+  .promo__portrait,
+  .promo__icon,
+  .promo__body,
+  .promo__action {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* md ≥ 768px — visual a la izquierda, texto en medio, botón a la derecha. */
+  @media (min-width: 768px) {
+    .promo {
+      flex-direction: row;
+      align-items: center;
+      text-align: start;
+      gap: var(--space-32);
+      padding-inline: var(--space-48);
+    }
+
+    .promo__text {
+      margin-inline: 0;
+    }
+  }
+</style>

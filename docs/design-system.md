@@ -123,6 +123,8 @@ El verde **resalta, no estructura**. Solo aparece en:
 3. **Botón de WhatsApp** — fondo `--green-700`, texto e icono en `--text-on-dark`. Es el único botón del sitio que no es dorado, y se justifica porque WhatsApp ya es verde en la cabeza de todo el mundo.
 4. **Marca de agua de cedro y olivo** — el patrón vegetal de las bandas, en `--green-700` al **6 % de opacidad**. Guiño al Líbano de San Chárbel; a esa opacidad se lee como textura, no como color.
 
+   Se dibuja como **SVG** (componente `Watermark`), no con máscaras CSS repetidas: una rama tiene que leerse como rama, y un patrón de elipses repetidas se lee como lunares. Siempre `aria-hidden`, anclada al extremo opuesto al contenido y nunca debajo de texto (§5.2).
+
 **Fuera de estos cuatro casos, no se usa verde.** Nada de títulos verdes, bandas verdes ni enlaces verdes. Si aparece un quinto caso, se discute y se agrega aquí antes de codificarlo.
 
 ### 1.4 Overlay de hero
@@ -492,6 +494,16 @@ Lo usan `InfoBar`, `ScheduleCard`, `PastoralCard`, `NeedCard`, `FeatureCard` y `
 
 Variante `white`: círculo blanco con `--shadow-sm`, para la insignia flotante de `ServiceCard` (§6.6).
 
+### 6.5.3 `Watermark`
+
+La marca de agua de §1.3.4 como componente: SVG de una rama de olivo en `--green-700` al 6 %, `aria-hidden`, anclable a una esquina (`bottom-right`, `bottom-left`, `top-right`). La usan `PromoBand` y `Quote`.
+
+### 6.5.4 `PastorWelcome`
+
+**Sin uso actualmente.** Se construyó para el bloque 4 de §7.1, que se retiró de la portada. Se conserva porque encaja en `/parroquia`; si al llegar esa página no se usa, se borra.
+
+Reparto 5 + 7 de §4.2 (texto + visual), apilado en móvil con el texto primero. Retrato circular con anillo dorado, eyebrow en `overline`, firma con nombre y cargo, y `Button(tertiary)`.
+
 ### 6.5.2 `ImagePlaceholder`
 
 **Componente temporal.** Ocupa el hueco de cada imagen que todavía no existe (§12.2.8), con la relación de aspecto definitiva de §5.2.
@@ -528,7 +540,7 @@ Etiqueta de categoría pill, `body-s` 600, padding `4px 12px`. **Único componen
 
 ### 6.9 `Quote` y `Blockquote`
 
-- **`Quote`** (oración del día): comilla decorativa dorada de 40 px, texto `body-l`, referencia en `body-s` 700.
+- **`Quote`** (oración del día): comilla decorativa dorada de 40 px, texto `body-l`, referencia en `body-s` 700. Marcado `<figure>` + `<blockquote>` + `<figcaption>`; la comilla va aparte y con `aria-hidden` para que no se lea. Prop `watermark` para la marca de agua de §1.3.4.
 - **`Blockquote`** (dentro de artículos): fondo `--cream-100`, **barra izquierda de 3 px `--gold-500`**, padding 24 px, referencia en `--gold-600`.
 
 ### 6.10 `PromoBand`
@@ -583,31 +595,52 @@ Móvil: una columna, secciones apiladas, redes centradas.
 
 ## 7. Plantillas de página
 
-### 7.1 Inicio — 11 bloques del documento 02
+### 7.1 Inicio — estructura definitiva
 
-| # | Bloque | Componentes |
+> **Esta tabla es la única fuente de verdad sobre qué secciones tiene la portada y en qué orden.** Sale del mockup de escritorio (`mockups/inicio-escritorio.png`), no del documento 02. Si el código y esta tabla se contradicen, el error está en el código. Si hace falta cambiar la portada, **se cambia aquí primero**.
+
+| # | Bloque | Componentes | Reparto |
+|---|---|---|---|
+| 1 | Cabecera | `Header(transparent)` | — |
+| 2 | Portada | `Hero(home)` + imagen a sangrado | — |
+| 3 | Orientación | `InfoBar` de 3 celdas: próxima misa · dirección · despacho (§6.4) | 3 col |
+| 4 | **Fila de tres columnas** | ver desglose abajo | **3 + 6 + 3** (§4.2) |
+| 5 | Devoción a San Chárbel | `PromoBand` — retrato con anillo dorado, botón a `/san-charbel/peticiones` | banda |
+| 6 | ¿Qué necesitas? | `NeedCard` × 4 | 4 col |
+| 7 | Vida parroquial | `PastoralCard` grid + `Button(tertiary)` a `/pastorales` | 4 col |
+| 8 | Noticias + Galería | `NewsCard` × 3 · `Gallery` sin lightbox | **8 + 4** (§4.2) |
+| 9 | Cómo llegar | `MapEmbed` + `ContactPanel` | 7 + 5 |
+| 10 | Donación | `PromoBand` → `/donar` | banda |
+| 11 | Pie | `Footer` | 4 col |
+
+**Bloque 4 — la fila de tres columnas.** En escritorio van lado a lado; en móvil se apilan en este mismo orden.
+
+| | Sub-bloque | Componentes |
 |---|---|---|
-| 1 | Cabecera | `Header(transparent)` |
-| 2 | Portada | `Hero(home)` — templo o imagen del santo, nombre + "Villa Carolina, Barranquilla" |
-| 3 | **Orientación** | `InfoBar` de 3 celdas: próxima misa · dirección · despacho (§6.4) |
-| 3b | **Horarios de misas** | `SectionHeader` + `ScheduleCard` × 3 + `Button(tertiary)` a `/horarios` |
-| 4 | Bienvenida del párroco | Retrato circular + texto + `Button(tertiary)` a `/parroquia` |
-| 5 | **Devoción a San Chárbel** | `PromoBand` — retrato con anillo dorado, `Quote` con la oración, botón primario |
-| 5b | **Evangelio del día** | `Quote` con marca de agua vegetal + `Button(tertiary)` |
-| 6 | ¿Qué necesitas? | `NeedCard` × 4 |
-| 7 | Próximas celebraciones | `SectionHeader` + `AgendaCard` × 3 + enlace a `/agenda` |
-| 8 | Nuestra comunidad | Fotos reales + `Button(tertiary)` a `/pastorales` |
-| 9 | Noticias y avisos | `NewsCard` × 3 |
-| 9b | **Galería** | `Gallery` sin lightbox + `Button(tertiary)` a `/galeria` |
-| 10 | Cómo llegar | `MapEmbed` + `ContactPanel` |
-| 10b | **Donación** | `PromoBand` → `/donar` (§0.3 y regla transversal de §7.5) |
-| 11 | Pie | `Footer` |
+| 4a | Horarios de misas (3 col) | `ScheduleCard` × 3 + `Button(tertiary)` a `/horarios` |
+| 4b | Próximas celebraciones (6 col) | `AgendaCard` × 3 + `Button(tertiary)` a `/agenda` |
+| 4c | Oración (3 col) | `Quote` con marca de agua vegetal (§1.3.4) |
 
-Los bloques con letra (**3b**, **5b**, **9b**, **10b**) salieron del mockup y no estaban en los 11 originales del documento 02. Se añaden porque el mockup los muestra y ninguno contradice la arquitectura.
+#### De dónde sale esta estructura
 
-**Los bloques 3 y 5 no se mueven.** El 3 debe verse **sin hacer scroll** en escritorio: por eso el hero mide 620 px y la `InfoBar` se superpone con `-72px`. En móvil la misma superposición hace que la primera celda **asome sobre el pliegue**: se ve que hay algo más y se invita a bajar, en vez de dejar la tarjeta escondida justo debajo.
+Los mockups mandan en **qué secciones existen y en qué orden**. El resto del documento —tokens, componentes, vocabulario, accesibilidad, rendimiento— sigue mandando igual que siempre; ahí no hay conflicto.
 
-**Los mockups de referencia están en `mockups/`**, con la advertencia de qué partes suyas quedaron superadas por §0.2.
+Dos secciones **no** están en los mockups y se conservan a propósito, por decisión del equipo:
+
+- **Bloque 6, "¿Qué necesitas?"** — responde lo que más se pregunta (§7.6: los requisitos son lo que la gente viene a buscar). Va justo después del bloque devocional: primero por qué esta parroquia, después qué necesito de ella.
+- **Bloque 9, "Cómo llegar"** — el sitio no puede no decir dónde queda. Va al final, donde ya se decidió venir, y es el destino del enlace `#como-llegar` de la celda "Dirección" de la `InfoBar`.
+
+Y una sección del documento 02 se retiró: la **"Bienvenida del párroco"**, que no aparecía en ningún mockup. El componente `PastorWelcome` (§6.5.4) se conserva sin uso por si se recupera en `/parroquia`.
+
+*(El "Evangelio del día" del mockup se implementa como **oración fija**, no como evangelio diario: cambia cada día, el sitio es estático y quedaría obsoleto cada mañana —el mismo problema que resuelve la isla de §8.3—. Además §12.2.5 aún no confirma que haya quién lo actualice.)*
+
+#### Reglas que no se negocian
+
+**Los bloques 3 y 5 no se mueven.** El 3 debe verse **sin hacer scroll** en escritorio: por eso el hero mide 620 px y la `InfoBar` se superpone con `-72px`. En móvil la misma superposición hace que la primera celda **asome sobre el pliegue**: se ve que hay algo más y se invita a bajar.
+
+**Ritmo tonal.** La portada va casi entera sobre `--color-bg`; los quiebres los dan las bandas **contenidas** (`PromoBand`, con su `--radius-lg`), no secciones a sangrado completo. Alternar fondo sí/no en cada bloque produce un rayado que el mockup no tiene.
+
+**Los mockups están en `mockups/`**, con la advertencia de qué partes suyas quedaron superadas por §0.2 (menú de 6 ítems, vocabulario, tilde en Chárbel).
 
 ### 7.2 Página institucional (La Parroquia, San Chárbel)
 ```
@@ -872,9 +905,11 @@ Parte de la comunidad parroquial es adulta mayor. Esto no es cumplimiento normat
 
 ### 12.1 Un punto a confirmar
 
-**¿`/san-charbel/peticiones` sigue en pie?** Pregunté por "peticiones o intenciones de misa en línea" y la respuesta fue "no a ver misas en línea", que apunta a **transmisiones en vivo**. Registré las transmisiones como descartadas.
+**~~¿`/san-charbel/peticiones` sigue en pie?~~ RESUELTO: sí, se queda.**
 
-El formulario de peticiones lo dejé **en pie**, porque el documento 02 lo trata como el diferencial de la parroquia (bloque 5 de la portada, marcado como inamovible) y borrarlo por una lectura ambigua costaría más que mantenerlo. Si también va fuera: se elimina la tabla `peticiones`, el bloque 5 pierde su botón y se convierte en devocional puro, y `/san-charbel` baja de tres accesos a dos.
+La duda venía de que pregunté por "peticiones o intenciones de misa en línea" y la respuesta fue "no a ver misas en línea", que apuntaba a **transmisiones en vivo**, no al formulario. Las transmisiones siguen descartadas; las peticiones se quedan.
+
+Consecuencias, ya aplicadas: la tabla `peticiones` sigue en §9.2, el botón primario del bloque 5 de la portada apunta a `/san-charbel/peticiones`, y `/san-charbel` conserva sus tres accesos.
 
 ### 12.2 Sigue abierto en la parroquia
 

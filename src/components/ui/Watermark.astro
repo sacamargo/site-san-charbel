@@ -1,0 +1,108 @@
+---
+/**
+ * Watermark — Sistema de diseño §1.3.4
+ *
+ * Marca de agua de cedro y olivo, en --green-700 al 6 % de opacidad. Guiño al
+ * Líbano de San Chárbel; a esa opacidad se lee como textura, no como color, y
+ * por eso es el único verde admitido fuera de los otros tres usos de §1.3.
+ *
+ * Siempre decorativa (aria-hidden) y **nunca debajo de texto** (§5.2): se ancla
+ * al extremo opuesto al contenido y el contenido va por encima.
+ *
+ * Se dibuja como SVG y no con máscaras CSS: una rama tiene que leerse como
+ * rama, y un patrón repetido de elipses se lee como lunares.
+ */
+interface Props {
+  /** Esquina a la que se ancla. */
+  position?: 'bottom-right' | 'bottom-left' | 'top-right';
+  size?: number;
+  class?: string;
+}
+
+const { position = 'bottom-right', size = 220, class: className } = Astro.props;
+
+// Hojas repartidas a lo largo del tallo, alternando lado. Generarlas aquí evita
+// escribir a mano veinte elipses casi iguales.
+const hojas = Array.from({ length: 9 }, (_, i) => {
+  const t = (i + 1) / 10;
+  // Punto sobre la curva del tallo (Bézier cuadrática de 20,180 a 180,30).
+  const x = (1 - t) ** 2 * 20 + 2 * (1 - t) * t * 40 + t ** 2 * 180;
+  const y = (1 - t) ** 2 * 180 + 2 * (1 - t) * t * 60 + t ** 2 * 30;
+  const lado = i % 2 === 0 ? 1 : -1;
+  const angulo = -35 * lado + (t * 25 - 12);
+  return { x, y, angulo, escala: 0.75 + t * 0.35 };
+});
+---
+
+<svg
+  class:list={['watermark', `is-${position}`, className]}
+  width={size}
+  height={size}
+  viewBox="0 0 200 200"
+  fill="none"
+  aria-hidden="true"
+>
+  {/* Tallo */}
+  <path
+    d="M20 180 Q40 60 180 30"
+    stroke="currentColor"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+
+  {/* Hojas de olivo */}
+  {
+    hojas.map((h) => (
+      <ellipse
+        cx={h.x}
+        cy={h.y}
+        rx={7 * h.escala}
+        ry={17 * h.escala}
+        fill="currentColor"
+        transform={`rotate(${h.angulo} ${h.x} ${h.y})`}
+      />
+    ))
+  }
+
+  {/* Ramita secundaria, para que no se lea como una sola línea */}
+  <path
+    d="M62 128 Q90 118 120 128"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+  />
+  <ellipse cx="120" cy="128" rx="6" ry="14" fill="currentColor" transform="rotate(55 120 128)" />
+  <ellipse cx="95" cy="120" rx="5.5" ry="13" fill="currentColor" transform="rotate(-30 95 120)" />
+</svg>
+
+<style>
+  .watermark {
+    position: absolute;
+    z-index: 0;
+    color: var(--green-700);
+    opacity: 0.06; /* §1.3.4 — a más opacidad deja de ser textura y pasa a ser color */
+    pointer-events: none;
+  }
+
+  .is-bottom-right {
+    inset-block-end: -24px;
+    inset-inline-end: -24px;
+  }
+
+  .is-bottom-left {
+    inset-block-end: -24px;
+    inset-inline-start: -24px;
+    transform: scaleX(-1);
+  }
+
+  .is-top-right {
+    inset-block-start: -24px;
+    inset-inline-end: -24px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .watermark {
+      transition: opacity 200ms ease;
+    }
+  }
+</style>

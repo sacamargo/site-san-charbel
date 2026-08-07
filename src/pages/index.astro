@@ -1,25 +1,42 @@
 ---
 /**
- * Inicio — Sistema de diseño §7.1
+ * Inicio — la estructura la manda §7.1 del sistema de diseño.
  *
- * Los 11 bloques de §7.1, en orden. Los bloques 3 y 5 NO SE MUEVEN.
+ * Si esta página y §7.1 se contradicen, el error está aquí. Para cambiar la
+ * portada se cambia §7.1 primero.
  *
- * Construidos:
- *   1. Cabecera            Header(transparent)
- *   2. Portada             Hero(home)
- *   3. Horarios            InfoBar  ← inamovible, debe verse sin scroll
- *
- * Pendientes (siguientes fases):
- *   4. Bienvenida del párroco   5. Devoción a San Chárbel ← inamovible
- *   6. ¿Qué necesitas?          7. Próximas celebraciones
- *   8. Nuestra comunidad        9. Noticias y avisos
- *  10. Cómo llegar             11. Pie
+ *   1. Cabecera                 ✓
+ *   2. Portada                  ✓
+ *   3. Orientación (InfoBar)    ✓  ← no se mueve, visible sin scroll
+ *   4. Fila 3+6+3               ✓  4a Horarios · 4b Celebraciones · 4c Oración
+ *   5. Devoción a San Chárbel   ✓  ← no se mueve
+ *   6. ¿Qué necesitas?          ✓
+ *   7. Vida parroquial          pendiente
+ *   8. Noticias + Galería       pendiente
+ *   9. Cómo llegar              pendiente
+ *  10. Donación                 pendiente
+ *  11. Pie                      pendiente
  */
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import Section from '@/components/layout/Section.astro';
+import SectionHeader from '@/components/ui/SectionHeader.astro';
+import Button from '@/components/ui/Button.astro';
+import Quote from '@/components/ui/Quote.astro';
 import Hero from '@/components/blocks/Hero.astro';
 import InfoBar from '@/components/blocks/InfoBar.astro';
+import PromoBand from '@/components/blocks/PromoBand.astro';
+import ScheduleCard from '@/components/cards/ScheduleCard.astro';
+import AgendaCard from '@/components/cards/AgendaCard.astro';
+import NeedCard from '@/components/cards/NeedCard.astro';
+import { getMisas } from '@/lib/queries/horarios';
+import { getProximasCelebraciones } from '@/lib/queries/celebraciones';
 import { parroquia } from '@/data/parroquia';
+import { necesidades } from '@/data/necesidades';
+import { oracionPortada } from '@/data/oraciones';
 import heroInicio from '@/assets/hero-inicio.png';
+
+const misas = await getMisas();
+const celebraciones = await getProximasCelebraciones(3);
 ---
 
 <BaseLayout
@@ -27,11 +44,178 @@ import heroInicio from '@/assets/hero-inicio.png';
   description={`${parroquia.nombre} — ${parroquia.barrio}, ${parroquia.ciudad}. Horarios de misas, sacramentos, celebraciones y vida parroquial.`}
   headerVariant="transparent"
 >
+  {/* 2 — Portada */}
   <Hero
     titulo="Un lugar para encontrarte con Dios"
     subtitulo={`Una comunidad que vive la fe, anuncia el Evangelio y sirve con amor en ${parroquia.barrio}, ${parroquia.ciudad}.`}
     imagen={heroInicio}
   />
 
+  {/* 3 — Orientación. No se mueve. */}
   <InfoBar />
+
+  {/* 4 — Fila de tres columnas (§4.2: 3 + 6 + 3). Apilada en móvil. */}
+  <Section>
+    <div class="fila3">
+      {/* 4a — Horarios de misas */}
+      <section class="fila3__col" aria-labelledby="titulo-horarios" id="horarios">
+        <SectionHeader id="titulo-horarios" title="Horarios de misas" as="h2" />
+        <ul class="apilada" role="list">
+          {
+            misas.map((misa) => (
+              <li>
+                <ScheduleCard horario={misa} icono="church" href="/horarios" />
+              </li>
+            ))
+          }
+        </ul>
+        <div class="fila3__cta">
+          <Button variant="tertiary" href="/horarios" iconEnd="arrow-right">
+            Ver todos los horarios
+          </Button>
+        </div>
+      </section>
+
+      {/* 4b — Próximas celebraciones. La columna ancha. */}
+      <section class="fila3__col fila3__col--wide" aria-labelledby="titulo-agenda">
+        <SectionHeader id="titulo-agenda" title="Próximas celebraciones" as="h2" />
+        <ul class="agenda-lista" role="list">
+          {
+            celebraciones.map((celebracion) => (
+              <li>
+                <AgendaCard celebracion={celebracion} />
+              </li>
+            ))
+          }
+        </ul>
+        <div class="fila3__cta">
+          <Button variant="tertiary" href="/agenda" iconEnd="arrow-right">
+            Ver toda la agenda
+          </Button>
+        </div>
+      </section>
+
+      {/* 4c — Oración */}
+      <section class="fila3__col" aria-labelledby="titulo-oracion">
+        <SectionHeader id="titulo-oracion" title="Oración" as="h2" />
+        <Quote referencia={oracionPortada.referencia} watermark>
+          {oracionPortada.texto}
+        </Quote>
+        <div class="fila3__cta">
+          <Button variant="tertiary" href="/san-charbel/oraciones" iconEnd="arrow-right">
+            Ver todas las oraciones
+          </Button>
+        </div>
+      </section>
+    </div>
+  </Section>
+
+  {/* 5 — Devoción a San Chárbel. No se mueve. */}
+  <Section>
+    <PromoBand
+      titulo="San Chárbel Makhlouf"
+      botonTexto="Pedir una oración"
+      botonHref="/san-charbel/peticiones"
+      botonIcono="heart"
+      retratoPendiente="Retrato de San Chárbel"
+    >
+      Monje libanés, ejemplo de oración, humildad y entrega. Su vida nos inspira a vivir
+      unidos a Dios en lo sencillo de cada día. Deja aquí tu intención y la llevamos al
+      altar.
+    </PromoBand>
+  </Section>
+
+  {/* 6 — ¿Qué necesitas? */}
+  <Section labelledby="titulo-necesitas">
+    <SectionHeader
+      id="titulo-necesitas"
+      title="¿Qué necesitas?"
+      subtitle="Lo que más nos preguntan, con los requisitos y los pasos en un solo lugar."
+    />
+    <ul class="necesidades-grid" role="list">
+      {
+        necesidades.map((n) => (
+          <li>
+            <NeedCard
+              titulo={n.titulo}
+              descripcion={n.descripcion}
+              href={n.href}
+              icono={n.icono}
+            />
+          </li>
+        ))
+      }
+    </ul>
+  </Section>
 </BaseLayout>
+
+<style>
+  /* --- Bloque 4: la fila de tres columnas ------------------------------ */
+
+  .fila3 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-section);
+  }
+
+  .fila3__col {
+    min-inline-size: 0;
+  }
+
+  .fila3__cta {
+    margin-block-start: var(--space-24);
+  }
+
+  .apilada,
+  .agenda-lista {
+    display: grid;
+    gap: var(--space-grid-gap);
+    margin: 0;
+    padding: 0;
+  }
+
+  /* --- Bloque 6 --------------------------------------------------------- */
+
+  .necesidades-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-grid-gap);
+    margin: 0;
+    padding: 0;
+  }
+
+  /* md ≥ 768px — la agenda ya puede ir en dos columnas dentro de su bloque. */
+  @media (min-width: 768px) {
+    .agenda-lista {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .necesidades-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* lg ≥ 1024px — §4.2: "Tres columnas del inicio: 3 + 6 + 3".
+     La agenda es la columna ancha y por eso lleva el doble de peso visual. */
+  @media (min-width: 1024px) {
+    .fila3 {
+      grid-template-columns: 3fr 6fr 3fr;
+      gap: var(--space-32);
+      align-items: start;
+    }
+
+    /* Las tres celebraciones van una al lado de otra dentro de la columna
+       ancha, como en el mockup de escritorio. */
+    .agenda-lista {
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-16);
+    }
+  }
+
+  /* Bajo sm los botones de cierre van a ancho completo (§6.2). */
+  @media (max-width: 479px) {
+    .fila3__cta :global(.btn) {
+      inline-size: 100%;
+    }
+  }
+</style>

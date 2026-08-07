@@ -1,0 +1,97 @@
+---
+/**
+ * ScheduleCard — Sistema de diseño §6.6
+ *
+ * Icono circular de 40 px, día en `h4`, horas en `body-s`. Blanca, con borde y
+ * --radius-md.
+ *
+ * Aquí sí se listan TODAS las horas, al contrario que en la InfoBar (§6.4),
+ * que resume porque tiene un presupuesto de altura que respetar. Esta tarjeta
+ * es justamente el sitio donde el horario se ve completo.
+ */
+import IconCircle from '@/components/ui/IconCircle.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { formatHoras } from '@/lib/format';
+import type { IconName } from '@/components/ui/icons';
+import type { Horario } from '@/lib/types';
+
+interface Props {
+  horario: Horario;
+  icono?: IconName;
+  href?: string;
+}
+
+const { horario, icono = 'clock', href } = Astro.props;
+
+const horas = formatHoras(horario.horas, ' · ');
+const Tag = href ? 'a' : 'div';
+---
+
+<Tag class:list={['schedule-card', href && 'is-link']} href={href}>
+  <IconCircle name={icono} size={40} />
+
+  <div class="schedule-card__body">
+    <p class="schedule-card__day t-h4">{horario.dia}</p>
+    <p class="schedule-card__hours t-body-s">{horas}</p>
+    {horario.nota && <p class="schedule-card__note t-caption">{horario.nota}</p>}
+  </div>
+
+  {href && <Icon name="chevron-right" size={20} class="schedule-card__chevron" />}
+</Tag>
+
+<style>
+  .schedule-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+
+    padding: var(--space-card-pad);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .is-link {
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .is-link:hover {
+    border-color: var(--gold-300);
+    box-shadow: var(--shadow-md);
+  }
+
+  .schedule-card__body {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .schedule-card__day {
+    color: var(--text-900);
+  }
+
+  .schedule-card__hours {
+    margin-block-start: var(--space-4);
+    color: var(--text-700);
+  }
+
+  .schedule-card__note {
+    margin-block-start: var(--space-4);
+    color: var(--text-500);
+  }
+
+  .schedule-card__chevron {
+    color: var(--text-500);
+    transition: transform 150ms ease;
+  }
+
+  .is-link:hover .schedule-card__chevron {
+    transform: translateX(2px);
+    color: var(--color-accent);
+  }
+</style>

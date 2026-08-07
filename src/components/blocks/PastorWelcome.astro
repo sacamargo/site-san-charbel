@@ -1,0 +1,93 @@
+---
+/**
+ * PastorWelcome — §7.1, bloque 4 "Bienvenida del párroco".
+ *
+ * No está en §6; se añadió al construir la portada, según la regla de
+ * AGENTS.md. Existe para que index.astro no acumule marcado suelto: es el
+ * único bloque de "retrato + texto + botón" con esta composición.
+ *
+ * Reparto 5 + 7 de §4.2 (texto + visual), apilado en móvil con el texto
+ * primero, que es lo que pide esa misma tabla.
+ */
+import Button from '@/components/ui/Button.astro';
+import ImagePlaceholder from './ImagePlaceholder.astro';
+
+interface Props {
+  /** Nombre del párroco. PENDIENTE §12.2 mientras no lo confirmen. */
+  nombre: string;
+  cargo: string;
+  retratoPendiente: string;
+}
+
+const { nombre, cargo, retratoPendiente } = Astro.props;
+---
+
+<div class="pastor">
+  <div class="pastor__body flow">
+    <p class="t-overline pastor__eyebrow">Bienvenida</p>
+    <h2 class="t-h2">Te damos la bienvenida a nuestra casa</h2>
+    <p class="t-body measure">
+      <slot />
+    </p>
+    <p class="pastor__sign">
+      <span class="t-h4">{nombre}</span>
+      <span class="t-body-s pastor__role">{cargo}</span>
+    </p>
+    <div>
+      <Button variant="tertiary" href="/parroquia" iconEnd="arrow-right">
+        Conoce la parroquia
+      </Button>
+    </div>
+  </div>
+
+  <div class="pastor__visual">
+    <div class="pastor__portrait">
+      <ImagePlaceholder ratio="1/1" label={retratoPendiente} rounded="full" tone="light" />
+    </div>
+  </div>
+</div>
+
+<style>
+  .pastor {
+    display: grid;
+    gap: var(--space-32);
+  }
+
+  .pastor__eyebrow {
+    color: var(--color-accent-text);
+  }
+
+  .pastor__sign {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pastor__role {
+    color: var(--text-500);
+  }
+
+  .pastor__visual {
+    display: flex;
+    justify-content: center;
+  }
+
+  .pastor__portrait {
+    inline-size: min(280px, 70vw);
+    border-radius: var(--radius-full);
+    padding: 5px;
+    background-color: var(--color-accent);
+  }
+
+  /* md ≥ 768px — §4.2 "Texto + visual": 5 + 7, texto primero. */
+  @media (min-width: 768px) {
+    .pastor {
+      grid-template-columns: 7fr 5fr;
+      align-items: center;
+      gap: var(--space-48);
+    }
+
+    .pastor__portrait {
+      inline-size: min(320px, 100%);
+    }
+  }
+</style>
