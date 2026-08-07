@@ -1,41 +1,46 @@
-## Design system
+# San Chárbel — guía para agentes
 
-`docs/design-system.md` is the visual and structural source of truth: color and
-spacing tokens, typography, the component catalog, page templates, the Supabase
-schema, and the pre-PR checklist. Read it before building any UI. If something
-you need isn't defined there, propose it and add it to the doc first — don't
-invent it in a component.
+## Contexto del producto
 
-Hard rules from that doc, easy to get wrong:
+Este repositorio contiene el monolito de la Parroquia San Chárbel de Villa Carolina, Barranquilla. La aplicación tendrá una landing pública rápida y un panel administrativo pequeño para gestionar eventos, flyers, horarios e información parroquial.
 
-- Never write a raw hex color or an off-scale spacing value in a component. Always a token.
-- Green is limited to four uses only (§1.3). Everywhere else, gold is the accent.
-- Required vocabulary: **Pastorales** (not Ministerios), **Agenda** (not Eventos),
-  **La Parroquia** (not Nosotros). Applies to routes, titles, components, and tables.
-- "Chárbel" carries the accent in visible text; paths and slugs use `san-charbel`.
+## Decisiones actuales
 
-Component names are English PascalCase (`Button`, `AgendaCard`). Routes, slugs,
-database tables/columns, and all user-facing copy are Spanish.
+- Frontend y servidor: Astro.
+- Estilos: Tailwind CSS 4 mediante el plugin oficial de Vite.
+- Backend: Supabase hospedado (Postgres, Auth y Storage).
+- Entorno actual: Supabase DEV (`san-charbel-dev`). PROD se mantendrá separado.
+- Gestor de paquetes: npm. Mantener `package-lock.json` actualizado.
+- Instalar dependencias con `npm ci --ignore-scripts`.
+- No usar Docker para el desarrollo normal; Supabase local será opcional.
+- No exponer claves `service_role` o secret keys en el navegador ni en Git.
+- No crear tablas ni políticas directamente en PROD sin una migración revisada.
 
-## Development
+## Flujo de trabajo
 
-When starting the dev server, use background mode:
+1. Leer este archivo y `docs/SETUP.md`.
+2. Revisar `git status` y la rama activa antes de modificar.
+3. Trabajar en ramas descriptivas; no trabajar directamente en `main`.
+4. Consultar primero los datos reales antes de inventar horarios, teléfonos, correos o información pastoral.
+5. Mantener cambios pequeños y verificables.
+6. Ejecutar `npm run build` antes de entregar cambios de Astro.
+7. No ejecutar scripts de dependencias durante instalaciones.
+8. No borrar migraciones, datos o configuración remota sin autorización explícita.
 
+## Comandos
+
+```bash
+npm ci --ignore-scripts
+npm run dev
+npm run build
+npm run preview
 ```
-astro dev --background
-```
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+Para levantar el servidor en segundo plano, usar `astro dev --background` y gestionarlo con `astro dev stop`, `astro dev status` y `astro dev logs`.
 
-## Documentation
+## Documentación de referencia
 
-Full documentation: https://docs.astro.build
-
-Consult these guides before working on related tasks:
-
-- [Adding pages, dynamic routes, or middleware](https://docs.astro.build/en/guides/routing/)
-- [Working with Astro components](https://docs.astro.build/en/basics/astro-components/)
-- [Using React, Vue, Svelte, or other framework components](https://docs.astro.build/en/guides/framework-components/)
-- [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
-- [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
-- [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+- `docs/SETUP.md`: configuración local y Supabase DEV.
+- `docs/PROJECT-CONTEXT.md`: alcance del producto y decisiones de MVP.
+- `src/lib/supabase/server.ts`: cliente Supabase para SSR y cookies.
+- `src/lib/supabase/browser.ts`: cliente Supabase para el navegador.
