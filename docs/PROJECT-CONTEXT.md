@@ -23,6 +23,7 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - Agenda de eventos y anuncios como lista cronológica.
 - Información introductoria de San Chárbel.
 - Sacramentos: índice y fichas de requisitos validados.
+- Solicitud de reserva de sacramento con confirmación de recepción por correo.
 
 ### Administración
 
@@ -30,13 +31,16 @@ Construir una landing rápida y clara para la Parroquia San Chárbel de Villa Ca
 - CRUD de eventos, publicación, destacados y vencimiento.
 - Flyers en Supabase Storage.
 - Actualización de horarios, servicios y contacto.
+- Revisión administrativa de solicitudes de sacramentos y cambio de estado.
 
 Los textos de sacramentos, oración y biografía se mantienen versionados en el repositorio.
+
+La confirmación por correo significa "recibimos tu solicitud". La fecha y disponibilidad deben ser confirmadas posteriormente por la parroquia.
 
 ## Fuera del MVP
 
 - Donaciones en línea.
-- Formularios públicos que almacenen datos personales.
+- Formularios públicos genéricos que almacenen datos personales.
 - Peticiones de oración, por su posible contenido sensible.
 - Noticias como módulo separado.
 - Calendario mensual complejo; la agenda será una lista.
@@ -48,15 +52,18 @@ Los textos de sacramentos, oración y biografía se mantienen versionados en el 
 1. Fundación: layout, navegación, estilos, SEO y datos validados.
 2. Información crítica: `/horarios` y `/contacto`.
 3. Producto central: `/agenda` con eventos y flyers desde Supabase.
-4. Contenido diferencial: `/san-charbel` y sacramentos.
-5. Inicio compuesto con enlaces funcionales y eventos vigentes.
-6. Operación: Auth, RLS, Storage y separación DEV/PROD.
+4. Solicitudes de sacramentos y correo de confirmación.
+5. Contenido diferencial: `/san-charbel` y sacramentos.
+6. Inicio compuesto con enlaces funcionales y eventos vigentes.
+7. Operación: Auth, RLS, Storage, Edge Function y separación DEV/PROD.
 
 ## Criterios de salida del MVP
 
 - Una persona encuentra el horario de misa desde un celular rápidamente.
 - Una persona encuentra la dirección y puede escribir por WhatsApp.
 - Un administrador publica un evento con flyer, fecha, lugar y contacto.
+- Una persona puede enviar una solicitud de sacramento y recibe confirmación de recepción.
+- Un administrador puede revisar la solicitud sin hacerla visible públicamente.
 - Los eventos vencidos no aparecen como próximos.
 - Horarios y contacto tienen fuente editable y fecha de revisión.
 - No hay información parroquial inventada; el contenido está aprobado.

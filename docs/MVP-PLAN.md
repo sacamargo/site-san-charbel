@@ -15,7 +15,7 @@ Resolver primero: horarios, contacto, próximos eventos, requisitos de sacrament
 | Contacto | Dirección, referencias, mapa, teléfono, WhatsApp y correo | Supabase/configuración |
 | Agenda | Lista cronológica de eventos vigentes y flyers | Supabase + Storage |
 | San Chárbel | Resumen biográfico y oración validada | Repositorio |
-| Sacramentos | Requisitos, documentos, pasos y contacto | Repositorio |
+| Sacramentos | Requisitos, documentos, pasos, solicitud y contacto | Repositorio + Supabase |
 
 La agenda no será un calendario mensual. El administrador publica eventos y el sitio muestra los próximos por fecha.
 
@@ -26,6 +26,9 @@ La agenda no será un calendario mensual. El administrador publica eventos y el 
 - Publicado/no publicado, destacado, fecha de inicio y vencimiento.
 - Flyer en Storage.
 - CRUD de horarios, servicios y contacto.
+- Bandeja privada de solicitudes de sacramentos.
+- Cambio de estado y notas internas para cada solicitud.
+- Envío de correo de confirmación de recepción.
 
 ## Modelo de datos inicial
 
@@ -36,8 +39,9 @@ Crear mediante migraciones, con RLS desde el inicio:
 - `parish_services`: confesiones, adoración y despacho.
 - `events`: título, resumen, categoría, fecha, lugar, contacto, publicación y vencimiento.
 - `event_media`: archivo de Storage y texto alternativo.
+- `sacrament_requests`: tipo de sacramento, datos de contacto mínimos, preferencia de fecha, estado, timestamps y notas internas.
 
-No crear todavía tablas para noticias, peticiones, inscripciones, testimonios o donaciones.
+No crear todavía tablas para noticias, peticiones de oración, testimonios o donaciones.
 
 ## Fases
 
@@ -57,9 +61,22 @@ Migración, Storage, Auth administrativa, panel de publicación y agenda públic
 
 San Chárbel, oración validada, sacramentos y requisitos reales, más el inicio compuesto.
 
+### Fase 4 — Solicitudes de sacramentos
+
+- Formulario específico por sacramento, no formulario genérico.
+- Validación de campos y consentimiento informado.
+- Inserción pública limitada: el visitante puede crear, pero no leer ni modificar solicitudes.
+- Acceso solo para administradores autorizados mediante Supabase Auth y RLS.
+- Edge Function para enviar el correo de recepción mediante un proveedor transaccional.
+- El secreto del proveedor vive en los secrets de Supabase, nunca en Astro, el navegador o Git.
+- Estado inicial `received`; la parroquia decide luego si pasa a `contacted`, `confirmed` o `rejected`.
+
 ## Decisiones de producto
 
-- No usar formularios públicos en el MVP: WhatsApp y teléfono reducen riesgo de datos sensibles y carga operativa.
+- No usar formularios públicos genéricos en el MVP. La excepción es la solicitud específica de sacramentos, con campos mínimos, consentimiento y política de privacidad.
+- El correo automático confirma recepción, no confirma disponibilidad ni aprobación de la reserva.
+- No guardar información médica ni detalles pastorales innecesarios en la solicitud.
+- RLS debe impedir `SELECT` de `anon`; solo `INSERT` controlado para público y lectura/actualización para administradores autorizados.
 - No publicar requisitos hasta recibir aprobación de la parroquia.
 - Registrar la última revisión de horarios y contacto.
 - Si nadie mantiene la agenda semanalmente, reducirla a celebraciones anuales y fijas.
@@ -67,7 +84,7 @@ San Chárbel, oración validada, sacramentos y requisitos reales, más el inicio
 
 ## Fuera del MVP
 
-Donaciones en línea, peticiones de oración, inscripciones, noticias como CMS, galería administrable, testimonios, streaming, calendario avanzado y múltiples roles.
+Donaciones en línea, peticiones de oración, inscripciones generales, noticias como CMS, galería administrable, testimonios, streaming, calendario avanzado y múltiples roles.
 
 ## Criterio de éxito
 
