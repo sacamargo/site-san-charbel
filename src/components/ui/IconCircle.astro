@@ -1,0 +1,58 @@
+---
+/**
+ * IconCircle — Sistema de diseño §5.1
+ *
+ * "El patrón más repetido del sistema": círculo --gold-100 con icono dorado
+ * centrado, en 40, 56 o 72px. Lo usan InfoBar, ScheduleCard, PastoralCard,
+ * NeedCard, FeatureCard y ServiceCard.
+ *
+ * §5.1 lo describe pero §6 no lo listaba como componente; se añadió a §6 al
+ * construirlo, según la regla de AGENTS.md.
+ *
+ * La variante `white` es la insignia flotante de ServiceCard (§6.6): círculo
+ * blanco sobre la esquina de la imagen.
+ */
+import Icon from './Icon.astro';
+import type { IconName } from './icons';
+
+interface Props {
+  name: IconName;
+  size?: 40 | 56 | 72;
+  tone?: 'gold' | 'white';
+  /** Texto accesible. Sin él, el icono queda como decorativo (§5.1). */
+  label?: string;
+  class?: string;
+}
+
+const { name, size = 56, tone = 'gold', label, class: className } = Astro.props;
+
+// El icono ocupa ~45% de la caja: 18/40, 24/56, 32/72.
+const iconSize = size === 40 ? 18 : size === 56 ? 24 : 32;
+---
+
+<span class:list={['icon-circle', `is-${tone}`, className]} style={`--circle-size: ${size}px`}>
+  <Icon name={name} size={iconSize} label={label} />
+</span>
+
+<style>
+  .icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--circle-size);
+    block-size: var(--circle-size);
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .is-gold {
+    background-color: var(--gold-100);
+    color: var(--color-accent);
+  }
+
+  .is-white {
+    background-color: var(--color-surface);
+    color: var(--color-accent);
+    box-shadow: var(--shadow-sm);
+  }
+</style>

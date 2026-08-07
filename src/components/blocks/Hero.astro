@@ -1,0 +1,149 @@
+---
+/**
+ * Hero — Sistema de diseño §6.5
+ *
+ * Sólo está implementada la variante `home` (§7.1, bloque 2). Las variantes
+ * `page`, `light` y `detail` se construyen cuando existan sus páginas; no se
+ * adelantan tres layouts sin usar.
+ *
+ * La altura de 620px no es decorativa: junto con la superposición de -72px de
+ * la InfoBar es lo que hace que el bloque 3 quede visible sin scroll (§7.1).
+ * Ver la excepción para viewports bajos en tokens.css.
+ */
+import { Image } from 'astro:assets';
+import Container from '@/components/layout/Container.astro';
+import Button from '@/components/ui/Button.astro';
+
+interface Props {
+  variant?: 'home';
+  titulo: string;
+  subtitulo?: string;
+  /** Imagen de fondo, importada desde src/assets para que Astro la optimice. */
+  imagen: ImageMetadata;
+}
+
+const { titulo, subtitulo, imagen } = Astro.props;
+---
+
+<section class="hero" aria-label="Presentación">
+  {/* alt="" a propósito: la imagen es fondo decorativo y el <h1> encima ya
+      comunica el mensaje. Repetirlo en el alt sería ruido para el lector de
+      pantalla (§5.2).
+      Es el elemento LCP de la página, de ahí eager + fetchpriority. */}
+  <Image
+    class="hero__media"
+    src={imagen}
+    alt=""
+    widths={[640, 960, 1280, 1536]}
+    sizes="100vw"
+    loading="eager"
+    fetchpriority="high"
+  />
+  <div class="hero__overlay" aria-hidden="true"></div>
+
+  <Container class="hero__inner">
+    <div class="hero__content">
+      <h1 class="t-display-l hero__title">{titulo}</h1>
+      {subtitulo && <p class="t-body-l hero__subtitle">{subtitulo}</p>}
+
+      <div class="hero__actions">
+        <Button variant="primary" size="lg" href="/horarios" icon="clock">
+          Ver horarios de misas
+        </Button>
+        <Button variant="outline-on-dark" size="lg" href="/agenda" icon="calendar-days">
+          Próximas celebraciones
+        </Button>
+      </div>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    /* min-block-size y no block-size: el texto en español es más largo que en
+       inglés y no debe desbordar una caja fija. */
+    min-block-size: max(480px, 72svh);
+    overflow: hidden;
+  }
+
+  /* svh en vez de vh: al colapsar la barra de direcciones en móvil, vh cambia
+     y produce un salto de layout que cuenta contra el CLS (§8.4). */
+
+  @media (min-width: 768px) {
+    .hero {
+      min-block-size: var(--hero-home-h);
+    }
+  }
+
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    /* En móvil el viewport es vertical y el recorte se come el ancho: con
+       `center` el santo queda fuera de cuadro y solo se ven las flores. Al 90%
+       la ventana visible cubre el 86% de su figura. */
+    object-position: 90% center;
+  }
+
+  /* §1.4 — las imágenes de hero nunca van limpias. */
+  .hero__overlay {
+    position: absolute;
+    inset: 0;
+    background-image: var(--overlay-hero-dark-movil);
+  }
+
+  @media (min-width: 768px) {
+    .hero__media {
+      /* Aquí ya se ve casi todo el ancho: el santo cae a la derecha por sí
+         solo y el recorte solo sacrifica suelo y techo. */
+      object-position: center;
+    }
+
+    .hero__overlay {
+      background-image: var(--overlay-hero-dark);
+    }
+  }
+
+  .hero :global(.hero__inner) {
+    position: relative;
+    z-index: 1;
+    /* Despeja el encabezado transparente superpuesto. */
+    padding-block-start: calc(var(--header-h) + var(--space-48));
+    padding-block-end: var(--space-96);
+  }
+
+  .hero__content {
+    max-inline-size: 620px; /* §6.5 — texto anclado a la izquierda */
+  }
+
+  .hero__title {
+    color: var(--text-on-dark);
+  }
+
+  .hero__subtitle {
+    margin-block-start: var(--space-20);
+    color: var(--text-on-dark-muted);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-block-start: var(--space-32);
+  }
+
+  /* Bajo sm los dos botones van apilados y a ancho completo, como en el
+     mockup móvil: a esa anchura, dos botones de contenido variable quedan
+     desalineados y se leen como cajas sueltas. */
+  @media (max-width: 479px) {
+    .hero__actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

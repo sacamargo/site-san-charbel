@@ -1,0 +1,273 @@
+---
+/**
+ * InfoBar — Sistema de diseño §6.4, §7.1 (bloque 3)
+ *
+ * Tres celdas de ORIENTACIÓN, no de horarios: próxima misa, dónde estamos y
+ * cuándo atiende el despacho. El horario completo vive en la sección "Horarios
+ * de misas", justo debajo; repetirlo aquí sería decir lo mismo dos veces en la
+ * misma pantalla.
+ *
+ * ⚠️ COMPONENTE CON RESTRICCIÓN DE ALTURA. §7.1 declara inamovible que este
+ * bloque se vea SIN HACER SCROLL en escritorio:
+ *
+ *   borde superior de la tarjeta = altura del hero − superposición (72 px)
+ *   borde inferior               = borde superior + altura de la tarjeta
+ *
+ * Las celdas son horizontales (icono a la izquierda, texto a la derecha) y el
+ * valor ocupa una sola línea. Si alguna de las dos cosas cambia, la tarjeta
+ * crece y el bloque se cae del pliegue. Ver la tabla de medidas en §6.4.
+ */
+import Container from '@/components/layout/Container.astro';
+import IconCircle from '@/components/ui/IconCircle.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Button from '@/components/ui/Button.astro';
+import { getMisas, getDespacho } from '@/lib/queries/horarios';
+import { parroquia } from '@/data/parroquia';
+
+const misas = await getMisas();
+const despacho = await getDespacho();
+
+/* Solo lo que necesita el script: día(s) y horas de cada misa. Va como JSON en
+   el HTML en vez de incrustado en el script para que el dato siga viniendo de
+   lib/queries y no haya que tocar JS cuando cambien los horarios. */
+const misasParaScript = misas.map((m) => ({ dias: m.dias, horas: m.horas }));
+
+const celdas = [
+  {
+    id: 'proxima-misa',
+    icono: 'church' as const,
+    label: 'Próxima misa',
+    // Valor honesto sin JS; el script lo sustituye por "Hoy, 6:00 p.m.".
+    valor: 'Ver horarios',
+    href: '/horarios',
+    dinamico: true,
+  },
+  {
+    id: 'direccion',
+    icono: 'map-pin' as const,
+    label: 'Dirección',
+    valor: `${parroquia.direccion}, ${parroquia.ciudad}`,
+    href: '#como-llegar',
+    dinamico: false,
+  },
+  {
+    id: 'despacho',
+    icono: 'clock' as const,
+    label: 'Despacho parroquial',
+    valor: despacho?.nota ?? 'Consultar',
+    href: '/contacto',
+    dinamico: false,
+  },
+];
+---
+
+<Container class="infobar__wrap">
+  <div class="infobar">
+    {
+      celdas.map((celda) => (
+        <a class="infobar__cell" href={celda.href}>
+          <IconCircle name={celda.icono} size={56} />
+          <span class="infobar__text">
+            <span class="infobar__label t-body-s">{celda.label}</span>
+            <span class="infobar__value t-h4" data-proxima-misa={celda.dinamico ? '' : undefined}>
+              {celda.valor}
+            </span>
+          </span>
+          <Icon name="chevron-right" size={20} class="infobar__chevron" />
+        </a>
+      ))
+    }
+  </div>
+
+  <div class="infobar__more">
+    <Button variant="ghost-link" href="/horarios" iconEnd="arrow-right">
+      Ver todos los horarios
+    </Button>
+  </div>
+</Container>
+
+{/* Datos, no código: is:inline explícito para que Astro no intente procesarlo. */}
+<script is:inline type="application/json" data-misas set:html={JSON.stringify(misasParaScript)} />
+
+<script>
+  /**
+   * Isla nº3 de las cinco de §8.3 — "Próxima misa".
+   *
+   * El sitio es estático: una hora calculada en el build diría "Hoy" para
+   * siempre y quedaría mal al día siguiente. Por eso se resuelve en el
+   * navegador. Sin JS, la celda ya trae un valor cierto ("Ver horarios") y
+   * enlaza a /horarios; esto solo la mejora.
+   */
+  const destino = document.querySelector<HTMLElement>('[data-proxima-misa]');
+  const datos = document.querySelector('[data-misas]')?.textContent;
+
+  if (destino && datos) {
+    const misas: Array<{ dias: number[]; horas: string[] }> = JSON.parse(datos);
+    const ZONA = 'America/Bogota';
+
+    // La hora de Bogotá, no la del dispositivo: alguien de viaje vería otra misa.
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: ZONA,
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date());
+
+    const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? '';
+    const DIAS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const diaHoy = DIAS.indexOf(parte('weekday'));
+    const minutosAhora = Number(parte('hour')) * 60 + Number(parte('minute'));
+
+    const NOMBRES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+    const formatHora = (hhmm: string) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      const sufijo = (h ?? 0) < 12 ? 'a.m.' : 'p.m.';
+      const h12 = (h ?? 0) % 12 || 12;
+      return `${h12}:${String(m ?? 0).padStart(2, '0')} ${sufijo}`;
+    };
+
+    // Barre los próximos 7 días y se queda con la primera misa que aún no pasó.
+    let encontrada: { enDias: number; hora: string } | null = null;
+
+    for (let salto = 0; salto < 7 && !encontrada; salto++) {
+      const dia = (diaHoy + salto) % 7;
+      const horasDelDia = misas
+        .filter((m) => m.dias.includes(dia))
+        .flatMap((m) => m.horas)
+        .sort();
+
+      for (const hora of horasDelDia) {
+        const [h, m] = hora.split(':').map(Number);
+        const minutos = (h ?? 0) * 60 + (m ?? 0);
+        if (salto > 0 || minutos > minutosAhora) {
+          encontrada = { enDias: salto, hora };
+          break;
+        }
+      }
+    }
+
+    if (encontrada) {
+      const cuando =
+        encontrada.enDias === 0
+          ? 'Hoy'
+          : encontrada.enDias === 1
+            ? 'Mañana'
+            : NOMBRES[(diaHoy + encontrada.enDias) % 7];
+      const texto = `${cuando}, ${formatHora(encontrada.hora)}`;
+      destino.textContent = texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+  }
+</script>
+
+<style>
+  /* Se superpone al hero en TODOS los tamaños (§6.4): el borde superior de la
+     tarjeta cae dentro de la imagen del hero, con el fondo oscuro asomando a
+     los lados de las esquinas redondeadas. Es lo que ata la tarjeta al hero en
+     vez de dejarla flotando sobre el crema, y lo que hace que se asome sobre
+     el pliegue en móvil en lugar de empezar justo debajo.
+     El z-index la deja por encima del overlay. */
+  .infobar__wrap {
+    position: relative;
+    z-index: 2;
+    margin-block-start: calc(var(--infobar-overlap) * -1);
+  }
+
+  .infobar {
+    display: grid;
+    grid-template-columns: 1fr;
+    background-color: var(--color-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .infobar__cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+
+    /* 56px de icono + 20px×2 de padding = 96px. Lee la nota de la cabecera
+       antes de tocar el padding o el tamaño del icono. */
+    padding: var(--space-20);
+    min-block-size: 96px;
+
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms ease;
+  }
+
+  .infobar__cell:hover {
+    background-color: var(--color-bg-alt);
+  }
+
+  /* Móvil: apiladas con divisores horizontales (§6.4). */
+  .infobar__cell + .infobar__cell {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .infobar__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-inline-size: 0;
+    /* Se come el espacio sobrante para empujar el chevron al extremo. */
+    flex: 1;
+  }
+
+  .infobar__label {
+    color: var(--text-500);
+  }
+
+  .infobar__value {
+    color: var(--text-900);
+    /* En móvil puede partir en dos líneas sin consecuencias: ahí la tarjeta ya
+       cae bajo el pliegue a propósito (§7.1) y no hay presupuesto de altura que
+       respetar. La restricción a una línea se aplica solo en escritorio. */
+    overflow-wrap: anywhere;
+  }
+
+  /* Afordancia de fila pulsable. Decorativo: el enlace ya tiene texto. */
+  .infobar__chevron {
+    color: var(--text-500);
+    transition: transform 150ms ease;
+  }
+
+  .infobar__cell:hover .infobar__chevron {
+    transform: translateX(2px);
+    color: var(--color-accent);
+  }
+
+  .infobar__more {
+    display: flex;
+    justify-content: center;
+    margin-block-start: var(--space-16);
+  }
+
+  /* lg ≥ 1024px — tres columnas iguales y superposición negativa al hero.
+     Con tres celdas cada una deja ~240px de texto, así que ya no hace falta
+     esperar a xl como cuando eran cuatro. */
+  @media (min-width: 1024px) {
+    .infobar {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .infobar__cell + .infobar__cell {
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--color-border);
+    }
+
+    /* Aquí sí: una sola línea. Dos subirían la tarjeta de 96px a ~121px y se
+       comerían el margen sobre el pliegue que exige §7.1. */
+    .infobar__value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .infobar__more {
+      justify-content: flex-end;
+    }
+  }
+</style>

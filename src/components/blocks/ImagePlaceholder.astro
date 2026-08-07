@@ -1,0 +1,104 @@
+---
+/**
+ * ImagePlaceholder — marcador de posición para toda imagen todavía inexistente.
+ *
+ * No está en §6 del sistema de diseño; se añadió al construir la portada,
+ * según la regla de AGENTS.md. Es temporal por diseño: desaparece cuando
+ * lleguen las fotos reales (§12.2.8).
+ *
+ * Por qué existe y no un <img> a un banco de imágenes: §5.1 prohíbe bancos de
+ * imágenes para personas de la comunidad, y un bloque de color deja evidente
+ * que falta material, en vez de disimularlo.
+ *
+ * CÓMO SE REEMPLAZA (§5.2): se cambia este componente por
+ *   <Image src={...} alt="..." width={...} height={...} class="..." />
+ * en el mismo hueco, con la misma relación de aspecto. Como el `aspect-ratio`
+ * ya reserva la caja definitiva, el cambio no produce ningún salto de layout
+ * (CLS, §8.4).
+ */
+interface Props {
+  /** Relación de aspecto — exactamente las de la tabla de §5.2. */
+  ratio?: '16/9' | '21/9' | '3/2' | '4/3' | '1/1';
+  /** Qué foto irá aquí. Se muestra en el marcador y documenta el hueco. */
+  label: string;
+  tone?: 'light' | 'dark';
+  rounded?: 'none' | 'md' | 'lg' | 'full';
+  /** true si sustituye contenido informativo; por defecto es decorativo (§10). */
+  informative?: boolean;
+  class?: string;
+}
+
+const {
+  ratio = '4/3',
+  label,
+  tone = 'light',
+  rounded = 'md',
+  informative = false,
+  class: className,
+} = Astro.props;
+---
+
+<div
+  class:list={['ph', `is-${tone}`, `r-${rounded}`, className]}
+  style={`--ph-ratio: ${ratio}`}
+  role={informative ? 'img' : undefined}
+  aria-label={informative ? label : undefined}
+  aria-hidden={informative ? undefined : 'true'}
+>
+  <span class="ph__label t-overline">{label}</span>
+</div>
+
+<style>
+  .ph {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Reserva la caja definitiva: sin esto, sustituir por la foto real
+       produciría un salto de layout. */
+    aspect-ratio: var(--ph-ratio);
+    inline-size: 100%;
+    overflow: hidden;
+    padding: var(--space-16);
+  }
+
+  /* La trama diagonal es deliberada: hace evidente que es un marcador y no una
+     decisión de diseño. */
+  .ph::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0 10px,
+      rgba(42, 30, 23, 0.045) 10px 20px
+    );
+  }
+
+  .is-light {
+    background-image: linear-gradient(135deg, var(--cream-100) 0%, var(--gold-100) 100%);
+    color: var(--text-500);
+  }
+
+  .is-dark {
+    background-image: linear-gradient(135deg, var(--brown-700) 0%, var(--brown-900) 100%);
+    color: var(--text-on-dark-muted);
+  }
+
+  .ph__label {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    opacity: 0.75;
+  }
+
+  .r-md {
+    border-radius: var(--radius-md);
+  }
+  .r-lg {
+    border-radius: var(--radius-lg);
+  }
+  .r-full {
+    border-radius: var(--radius-full);
+  }
+</style>

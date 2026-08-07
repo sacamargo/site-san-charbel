@@ -1,0 +1,58 @@
+---
+/**
+ * SectionHeader — Sistema de diseño §6.3
+ *
+ * Título h2 serif + regla dorada de 48×3px a 12px debajo + subtítulo opcional.
+ *
+ * La alineación se decide POR PÁGINA COMPLETA, no por sección suelta (§6.3).
+ * Inicio usa `left`, en coherencia con el hero anclado a la izquierda de §6.5.
+ */
+interface Props {
+  title: string;
+  subtitle?: string;
+  align?: 'left' | 'center';
+  /** Nivel semántico. El tamaño visual no cambia: §2.3 prohíbe saltar niveles. */
+  as?: 'h2' | 'h3';
+  /** Para enlazarlo con aria-labelledby desde la sección que encabeza. */
+  id?: string;
+  class?: string;
+}
+
+const { title, subtitle, align = 'left', as: Tag = 'h2', id, class: className } = Astro.props;
+---
+
+<header class:list={['section-header', `is-${align}`, className]}>
+  <Tag id={id} class="t-h2">{title}</Tag>
+  <span class="rule-gold" aria-hidden="true"></span>
+  {subtitle && <p class="t-body section-header__subtitle">{subtitle}</p>}
+</header>
+
+<style>
+  .section-header {
+    margin-block-end: var(--space-section-header);
+  }
+
+  .is-center {
+    text-align: center;
+  }
+
+  /* La regla es un span en flujo, así que se centra con margin-inline. */
+  .is-center :global(.rule-gold) {
+    margin-inline: auto;
+  }
+
+  /* §6.3 — la regla va a 12px del título. */
+  .section-header :global(.rule-gold) {
+    margin-block-start: var(--space-12);
+  }
+
+  .section-header__subtitle {
+    margin-block-start: var(--space-16);
+    max-width: var(--measure);
+    color: var(--text-500);
+  }
+
+  .is-center .section-header__subtitle {
+    margin-inline: auto;
+  }
+</style>

@@ -1,0 +1,258 @@
+/* ============================================================================
+   BASE — reset, defaults de elemento y escala tipográfica
+   Sistema de diseño §1.6, §2.2, §2.3, §10
+   ========================================================================= */
+
+@layer base {
+  /* --- Reset ------------------------------------------------------------ */
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  figure,
+  blockquote,
+  dl,
+  dd,
+  ul,
+  ol {
+    margin: 0;
+  }
+
+  ul[role='list'],
+  ol[role='list'] {
+    padding: 0;
+    list-style: none;
+  }
+
+  img,
+  svg,
+  video,
+  picture,
+  iframe {
+    display: block;
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    height: auto;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* --- Documento -------------------------------------------------------- */
+
+  html {
+    scroll-behavior: smooth;
+    /* Que el enlace "Saltar al contenido" y las anclas internas no caigan
+       debajo del encabezado fijo. */
+    scroll-padding-top: calc(var(--header-h) + var(--space-16));
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100svh;
+    background-color: var(--color-bg);
+    color: var(--text-700);
+    font-family: var(--font-body);
+    font-size: var(--step-body);
+    font-weight: var(--fw-regular);
+    line-height: var(--lh-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Defaults de tipografía — §2.2 ------------------------------------
+     El marcado semántico ya sale correcto sin ninguna clase. Las clases .t-*
+     de más abajo son para cuando el nivel semántico y el tamaño visual no
+     coinciden (§2.3 prohíbe saltar niveles por motivos visuales). */
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tracking-display);
+    color: var(--text-900);
+    text-wrap: balance;
+  }
+
+  h4 {
+    font-family: var(--font-body);
+    font-weight: var(--fw-semibold);
+    color: var(--text-900);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: var(--step-h1);
+    line-height: var(--lh-h1);
+  }
+  h2 {
+    font-size: var(--step-h2);
+    line-height: var(--lh-h2);
+  }
+  h3 {
+    font-size: var(--step-h3);
+    line-height: var(--lh-h3);
+  }
+  h4 {
+    font-size: var(--step-h4);
+    line-height: var(--lh-h4);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  small {
+    font-size: var(--step-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* §1.5 — dorado sobre claro solo pasa AA en su versión --gold-700. */
+  a {
+    color: var(--color-accent-text);
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    color: var(--color-accent-text);
+  }
+
+  strong,
+  b {
+    font-weight: var(--fw-bold);
+  }
+
+  /* --- Estados — §1.6, §10 ---------------------------------------------- */
+
+  /* Prohibido outline: none sin reemplazo (§10). */
+  :focus-visible {
+    outline: 2px solid var(--gold-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--gold-100);
+    color: var(--text-900);
+  }
+
+  /* --- Clases de escala — §2.2 ------------------------------------------
+     Cada fila de la escala son cinco declaraciones (familia, tamaño,
+     interlínea, peso, tracking). Repetirlas en cada componente es la
+     duplicación real que hay que evitar, no el clamp(). De ahí estas clases.
+
+     Uso: <h2 class="t-h3"> cuando el título debe verse más pequeño sin romper
+     la jerarquía de encabezados que exige §2.3. */
+
+  .t-display-xl,
+  .t-display-l,
+  .t-h1,
+  .t-h2,
+  .t-h3 {
+    font-family: var(--font-display);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tracking-display);
+    color: var(--text-900);
+  }
+
+  .t-display-xl {
+    font-size: var(--step-display-xl);
+    line-height: var(--lh-display-xl);
+  }
+  .t-display-l {
+    font-size: var(--step-display-l);
+    line-height: var(--lh-display-l);
+  }
+  .t-h1 {
+    font-size: var(--step-h1);
+    line-height: var(--lh-h1);
+  }
+  .t-h2 {
+    font-size: var(--step-h2);
+    line-height: var(--lh-h2);
+  }
+  .t-h3 {
+    font-size: var(--step-h3);
+    line-height: var(--lh-h3);
+  }
+
+  .t-h4 {
+    font-family: var(--font-body);
+    font-size: var(--step-h4);
+    line-height: var(--lh-h4);
+    font-weight: var(--fw-semibold);
+    color: var(--text-900);
+  }
+
+  .t-body-l,
+  .t-body,
+  .t-body-s,
+  .t-caption {
+    font-family: var(--font-body);
+    font-weight: var(--fw-regular);
+    letter-spacing: normal;
+  }
+
+  .t-body-l {
+    font-size: var(--step-body-l);
+    line-height: var(--lh-body);
+  }
+  .t-body {
+    font-size: var(--step-body);
+    line-height: var(--lh-body);
+  }
+  .t-body-s {
+    font-size: var(--step-body-s);
+    line-height: var(--lh-body-s);
+  }
+  .t-caption {
+    font-size: var(--step-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .t-overline {
+    font-family: var(--font-body);
+    font-size: var(--step-overline);
+    line-height: var(--lh-overline);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tracking-overline);
+    text-transform: uppercase;
+  }
+
+  /* --- Movimiento reducido — §10 ---------------------------------------- */
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

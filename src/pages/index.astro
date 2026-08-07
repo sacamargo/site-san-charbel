@@ -1,11 +1,37 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+/**
+ * Inicio — Sistema de diseño §7.1
+ *
+ * Los 11 bloques de §7.1, en orden. Los bloques 3 y 5 NO SE MUEVEN.
+ *
+ * Construidos:
+ *   1. Cabecera            Header(transparent)
+ *   2. Portada             Hero(home)
+ *   3. Horarios            InfoBar  ← inamovible, debe verse sin scroll
+ *
+ * Pendientes (siguientes fases):
+ *   4. Bienvenida del párroco   5. Devoción a San Chárbel ← inamovible
+ *   6. ¿Qué necesitas?          7. Próximas celebraciones
+ *   8. Nuestra comunidad        9. Noticias y avisos
+ *  10. Cómo llegar             11. Pie
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Hero from '@/components/blocks/Hero.astro';
+import InfoBar from '@/components/blocks/InfoBar.astro';
+import { parroquia } from '@/data/parroquia';
+import heroInicio from '@/assets/hero-inicio.png';
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<BaseLayout
+  title="Inicio"
+  description={`${parroquia.nombre} — ${parroquia.barrio}, ${parroquia.ciudad}. Horarios de misas, sacramentos, celebraciones y vida parroquial.`}
+  headerVariant="transparent"
+>
+  <Hero
+    titulo="Un lugar para encontrarte con Dios"
+    subtitulo={`Una comunidad que vive la fe, anuncia el Evangelio y sirve con amor en ${parroquia.barrio}, ${parroquia.ciudad}.`}
+    imagen={heroInicio}
+  />
+
+  <InfoBar />
+</BaseLayout>
