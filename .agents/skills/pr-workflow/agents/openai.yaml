@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Workflow"
+  short_description: "Flujo de ramas y PRs para San Chárbel"
+  default_prompt: "Usa este skill para trabajar desde development en una rama aparte, validar cambios y abrir un PR de regreso a development."
