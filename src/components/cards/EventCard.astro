@@ -1,0 +1,60 @@
+---
+/**
+ * EventCard — tarjeta de "Próximos eventos".
+ *
+ * Foto arriba, título en dorado, y debajo fecha y lugar con icono.
+ *
+ * Toda la tarjeta es pulsable: el enlace envuelve el título y se estira con
+ * ::after. El z-index del ::after importa — sin él, la foto queda por encima y
+ * la mitad superior de la tarjeta deja de navegar.
+ */
+import ImagePlaceholder from '@/components/blocks/ImagePlaceholder.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { formatFecha, formatHora } from '@/lib/format';
+import type { Celebracion } from '@/lib/types';
+
+interface Props {
+  celebracion: Celebracion;
+}
+
+const { celebracion } = Astro.props;
+const { slug, titulo, fecha_inicio, hora, lugar } = celebracion;
+---
+
+<article
+  class="group relative flex flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow hover:shadow-lift"
+>
+  <ImagePlaceholder ratio="3/2" label={titulo} rounded="none" />
+
+  <div class="flex flex-1 flex-col gap-2 p-5">
+    <h3 class="font-display text-h3 font-bold">
+      <a
+        href={`/agenda/${slug}`}
+        class="text-gold-600 no-underline after:absolute after:inset-0 after:z-10 after:content-[''] group-hover:text-olive-700"
+      >
+        {titulo}
+      </a>
+    </h3>
+
+    <p class="text-small text-ink-soft">{formatFecha(fecha_inicio)}</p>
+
+    <ul class="mt-auto flex flex-col gap-1 pt-2 text-small text-muted" role="list">
+      {
+        hora && (
+          <li class="flex items-center gap-2">
+            <Icon name="clock" size={14} />
+            <span>{formatHora(hora)}</span>
+          </li>
+        )
+      }
+      {
+        lugar && (
+          <li class="flex items-center gap-2">
+            <Icon name="map-pin" size={14} />
+            <span>{lugar}</span>
+          </li>
+        )
+      }
+    </ul>
+  </div>
+</article>

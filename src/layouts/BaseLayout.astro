@@ -1,23 +1,20 @@
 ---
 /**
  * BaseLayout — envoltura de todas las páginas del sitio.
- * Sistema de diseño §2.1 (precarga de fuentes), §6.1, §10.
+ * Sistema de diseño: docs/DESIGN.md
  */
 import { Font } from 'astro:assets';
 import Header from '@/components/layout/Header.astro';
-import '@/styles/tokens.css';
-import '@/styles/base.css';
-import '@/styles/utilities.css';
+import Footer from '@/components/layout/Footer.astro';
+import '@/styles/global.css';
 
 interface Props {
   /** Se antepone al nombre de la parroquia en <title>. */
   title: string;
   description: string;
-  /** §6.1 — `transparent` solo cuando la página abre con un hero oscuro. */
-  headerVariant?: 'transparent' | 'solid';
 }
 
-const { title, description, headerVariant = 'solid' } = Astro.props;
+const { title, description } = Astro.props;
 
 const SITE_NAME = 'Parroquia San Chárbel';
 const fullTitle = `${title} · ${SITE_NAME}`;
@@ -32,7 +29,7 @@ const fullTitle = `${title} · ${SITE_NAME}`;
 
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#33241b" />
+    <meta name="theme-color" content="#2f2e1b" />
 
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -45,33 +42,27 @@ const fullTitle = `${title} · ${SITE_NAME}`;
     <meta property="og:locale" content="es_CO" />
     <meta property="og:site_name" content={SITE_NAME} />
 
-    {/* §2.1 — precarga ÚNICAMENTE los dos cortes del hero: el <h1> es Playfair
-        700 (display-l) y el subtítulo es Nunito 400 (body-l). Los demás pesos
-        se cargan normalmente con font-display: swap. */}
+    {/* Precarga ÚNICAMENTE los dos cortes del hero: el <h1> es Playfair 700 y
+        el párrafo es Nunito 400. Los demás pesos cargan con font-display: swap. */}
     <Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
     <Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
   </head>
 
-  <body>
-    {/* §10 — primer elemento enfocable del documento. */}
-    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <body class="min-h-screen">
+    {/* Primer elemento enfocable del documento. */}
+    <a
+      href="#contenido"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:rounded-lg focus:bg-surface focus:px-5 focus:py-3 focus:text-small focus:font-semibold focus:text-ink focus:shadow-lift"
+    >
+      Saltar al contenido
+    </a>
 
-    <Header variant={headerVariant} />
+    <Header />
 
-    <main id="contenido" class:list={[headerVariant === 'transparent' && 'is-under-header']}>
+    <main id="contenido">
       <slot />
     </main>
 
-    {/* <Footer /> — §6.16, se construye en la fase de bloques 8/10/11. */}
-
-    <style>
-      /* Con el encabezado transparente, el hero empieza en el borde superior
-         del viewport y el encabezado flota encima. Sin esto el hero arrancaría
-         72px más abajo y la InfoBar caería fuera del pliegue, incumpliendo
-         §7.1. El hero compensa con su propio padding superior. */
-      .is-under-header {
-        margin-block-start: calc(var(--header-h) * -1);
-      }
-    </style>
+    <Footer />
   </body>
 </html>

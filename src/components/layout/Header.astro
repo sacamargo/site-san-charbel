@@ -1,330 +1,119 @@
 ---
 /**
- * Header — Sistema de diseño §6.1, §0.2
+ * Header — encabezado del sitio.
  *
- * Seis ítems, no ocho: el menú de los mockups quedó descartado en §0.2. El
- * espacio que sobra se gasta, como pide §6.1, en separación de 32px y en dejar
- * el wordmark completo sin abreviar.
+ * Fondo marfil sólido (el diseño nuevo no tiene encabezado transparente sobre
+ * el hero) y navegación plana de cuatro ítems. Sin botón "Donar".
  *
- * Los desplegables de escritorio funcionan con :hover/:focus-within, sin JS.
- * El único script del componente detecta el scroll (§6.1: sólido tras 80px).
+ * Activo: texto oliva + subrayado dorado de 2px.
+ *
+ * El menú móvil usa <dialog> + showModal(): el atrapado de foco, el cierre con
+ * Esc, el backdrop y el bloqueo de scroll los da el navegador. Son ~15 líneas
+ * de script en vez de ~80 de trampa de foco a mano.
  */
-import Container from './Container.astro';
-import MobileMenu from './MobileMenu.astro';
-import Button from '@/components/ui/Button.astro';
-import Icon from '@/components/ui/Icon.astro';
+import Brand from './Brand.astro';
 import { navegacion } from '@/data/navigation';
-import { parroquia } from '@/data/parroquia';
-
-interface Props {
-  variant?: 'transparent' | 'solid';
-}
-
-const { variant = 'solid' } = Astro.props;
 
 const rutaActual = Astro.url.pathname;
-
-function esActivo(href: string): boolean {
-  return href === '/' ? rutaActual === '/' : rutaActual.startsWith(href);
-}
+const esActivo = (href: string) =>
+  href === '/' ? rutaActual === '/' : rutaActual.startsWith(href);
 ---
 
-{/* Centinela de 1px: el IntersectionObserver lo vigila en lugar de escuchar
-    el scroll. Sin listener de scroll y sin throttling. */}
-<div data-scroll-sentinel aria-hidden="true"></div>
+<header class="sticky top-0 z-50 border-b border-line bg-ivory/95 backdrop-blur-sm">
+  <div class="mx-auto flex max-w-(--container-page) items-center justify-between gap-6 px-4 py-3 md:px-6">
+    <Brand />
 
-<header class:list={['header', `is-${variant}`]} data-header>
-  <Container class="header__inner">
-    <a href="/" class="brand" aria-label={`${parroquia.nombre} — Inicio`}>
-      {/* PENDIENTE §12.2.7 — logo oficial en vectorial. */}
-      <span class="brand__mark" aria-hidden="true">
-        <Icon name="church" size={20} />
-      </span>
-      <span class="brand__text">
-        <span class="brand__eyebrow t-overline">Parroquia</span>
-        <span class="brand__name">San Chárbel</span>
-      </span>
-    </a>
-
-    <nav class="nav" aria-label="Navegación principal">
-      <ul class="nav__list" role="list">
+    <nav class="hidden md:block" aria-label="Navegación principal">
+      <ul class="flex items-center gap-8" role="list">
         {
           navegacion.map((item) => (
-            <li class:list={['nav__item', item.children && 'has-children']}>
+            <li>
               <a
                 href={item.href}
-                class="nav__link"
                 aria-current={esActivo(item.href) ? 'page' : undefined}
+                class:list={[
+                  'relative flex min-h-11 items-center text-small font-semibold no-underline transition-colors',
+                  esActivo(item.href)
+                    ? 'text-olive-700 after:absolute after:inset-x-0 after:bottom-2 after:h-0.5 after:rounded-pill after:bg-gold-500'
+                    : 'text-ink-soft hover:text-olive-700',
+                ]}
               >
                 {item.label}
-                {item.children && <Icon name="chevron-down" size={16} class="nav__chevron" />}
               </a>
-
-              {item.children && (
-                <ul class="nav__dropdown" role="list">
-                  {item.children.map((child) => (
-                    <li>
-                      <a
-                        href={child.href}
-                        class="nav__dropdown-link"
-                        aria-current={esActivo(child.href) ? 'page' : undefined}
-                      >
-                        {child.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           ))
         }
       </ul>
     </nav>
 
-    <div class="header__actions">
-      {/* §0.3 — el botón se construye ahora; /donar es una página simple. */}
-      <Button variant="primary" size="sm" href="/donar" icon="heart" class="header__donate">
-        Donar
-      </Button>
-      <MobileMenu />
-    </div>
-  </Container>
+    {/* --- Móvil --- */}
+    <button
+      type="button"
+      data-menu-open
+      aria-controls="menu-movil"
+      class="grid size-11 place-items-center rounded-pill text-ink md:hidden"
+    >
+      <span class="sr-only">Abrir menú</span>
+      <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
 </header>
 
-<script>
-  // §6.1 — el encabezado transparente pasa a sólido al superar 80px de scroll.
-  const header = document.querySelector('[data-header]');
-  const centinela = document.querySelector('[data-scroll-sentinel]');
+<dialog
+  id="menu-movil"
+  aria-label="Menú principal"
+  class="m-0 h-full max-h-full w-full max-w-full bg-ivory p-0 backdrop:bg-olive-900/60"
+>
+  <div class="flex items-center justify-between border-b border-line px-4 py-3">
+    <Brand href={null} />
+    <button
+      type="button"
+      data-menu-close
+      class="grid size-11 place-items-center rounded-pill text-ink"
+    >
+      <span class="sr-only">Cerrar menú</span>
+      <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
 
-  if (header && centinela) {
-    new IntersectionObserver(
-      ([entrada]) => {
-        if (entrada) header.classList.toggle('is-scrolled', !entrada.isIntersecting);
-      },
-      { rootMargin: '-80px 0px 0px 0px' }
-    ).observe(centinela);
+  <nav class="px-4 py-6" aria-label="Navegación principal">
+    <ul class="flex flex-col" role="list">
+      {
+        navegacion.map((item) => (
+          <li class="border-b border-line last:border-0">
+            <a
+              href={item.href}
+              aria-current={esActivo(item.href) ? 'page' : undefined}
+              class:list={[
+                'flex min-h-14 items-center font-display text-h3 no-underline',
+                esActivo(item.href) ? 'text-olive-700' : 'text-ink',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+</dialog>
+
+<script>
+  const dialogo = document.getElementById('menu-movil') as HTMLDialogElement | null;
+
+  if (dialogo) {
+    document.querySelector('[data-menu-open]')?.addEventListener('click', () => dialogo.showModal());
+    dialogo.querySelector('[data-menu-close]')?.addEventListener('click', () => dialogo.close());
+
+    dialogo.addEventListener('click', (evento) => {
+      // Clic en el backdrop: el target es el propio <dialog>, no su contenido.
+      if (evento.target === dialogo) dialogo.close();
+      // Y al navegar a un enlace, cerrar (importa con anclas de la misma página).
+      if ((evento.target as HTMLElement).closest('a')) dialogo.close();
+    });
   }
 </script>
-
-<style>
-  [data-scroll-sentinel] {
-    position: absolute;
-    inset-block-start: 0;
-    block-size: 1px;
-    inline-size: 1px;
-  }
-
-  .header {
-    position: sticky;
-    inset-block-start: 0;
-    z-index: 50;
-    block-size: var(--header-h);
-    transition:
-      background-color 200ms ease,
-      box-shadow 200ms ease;
-  }
-
-  .is-solid {
-    background-color: var(--color-surface-dark);
-  }
-
-  /* Sobre el hero: sin fondo hasta que se hace scroll. */
-  .is-transparent {
-    background-color: transparent;
-  }
-
-  .is-transparent.is-scrolled {
-    background-color: var(--color-surface-dark);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .header :global(.header__inner) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-24);
-    block-size: 100%;
-  }
-
-  /* --- Marca — §6.1 ----------------------------------------------------- */
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: var(--space-12);
-    /* El logo mide 40px, pero el enlace es táctil y necesita 44 (§10). */
-    min-block-size: 44px;
-    color: var(--text-on-dark);
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-
-  .brand__mark {
-    display: grid;
-    place-items: center;
-    inline-size: 40px;
-    block-size: 40px;
-    border-radius: var(--radius-full);
-    background-color: var(--gold-100);
-    color: var(--gold-600);
-  }
-
-  .brand__text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-  }
-
-  .brand__eyebrow {
-    color: var(--text-on-dark-muted);
-  }
-
-  .brand__name {
-    font-family: var(--font-display);
-    font-weight: var(--fw-bold);
-    font-size: var(--step-h4);
-    letter-spacing: var(--tracking-display);
-  }
-
-  /* --- Navegación — §6.1 ------------------------------------------------ */
-
-  .nav {
-    display: none;
-  }
-
-  @media (min-width: 1024px) {
-    .nav {
-      display: block;
-    }
-  }
-
-  .nav__list {
-    display: flex;
-    align-items: center;
-    gap: var(--space-32); /* §6.1 — el espacio ganado al pasar de 8 a 6 ítems */
-    margin: 0;
-    padding: 0;
-  }
-
-  .nav__item {
-    position: relative;
-  }
-
-  .nav__link {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    min-block-size: 44px;
-    font-size: var(--step-body-s);
-    font-weight: var(--fw-semibold);
-    color: var(--text-on-dark);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .nav__link:hover {
-    color: var(--color-accent);
-  }
-
-  /* Activo: dorado + regla inferior de 2px (§6.1). */
-  .nav__link[aria-current='page'] {
-    color: var(--color-accent);
-  }
-
-  .nav__link[aria-current='page']::after {
-    content: '';
-    position: absolute;
-    inset-block-end: 8px;
-    inset-inline: 0;
-    block-size: 2px;
-    background-color: var(--color-accent);
-    border-radius: var(--radius-full);
-  }
-
-  .nav__chevron {
-    color: currentColor;
-    opacity: 0.7;
-    transition: transform 150ms ease;
-  }
-
-  /* --- Desplegables: sin JS, con :hover y :focus-within ----------------- */
-
-  .nav__dropdown {
-    position: absolute;
-    inset-block-start: 100%;
-    inset-inline-start: calc(var(--space-16) * -1);
-    z-index: 10;
-
-    min-inline-size: 220px;
-    margin: 0;
-    padding: var(--space-8);
-    list-style: none;
-
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-4px);
-    transition:
-      opacity 150ms ease,
-      transform 150ms ease,
-      visibility 150ms;
-  }
-
-  .has-children:hover .nav__dropdown,
-  .has-children:focus-within .nav__dropdown {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-  }
-
-  .has-children:hover .nav__chevron,
-  .has-children:focus-within .nav__chevron {
-    transform: rotate(180deg);
-  }
-
-  .nav__dropdown-link {
-    display: flex;
-    align-items: center;
-    min-block-size: 44px;
-    padding-inline: var(--space-12);
-    border-radius: var(--radius-sm);
-
-    font-size: var(--step-body-s);
-    color: var(--text-700);
-    text-decoration: none;
-  }
-
-  .nav__dropdown-link:hover {
-    background-color: var(--color-bg-alt);
-    color: var(--color-accent-text);
-  }
-
-  .nav__dropdown-link[aria-current='page'] {
-    color: var(--color-accent-text);
-    font-weight: var(--fw-semibold);
-  }
-
-  /* --- Acciones --------------------------------------------------------- */
-
-  .header__actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-    flex-shrink: 0;
-  }
-
-  /* El botón Donar cede el sitio a la hamburguesa en pantallas estrechas. */
-  .header__actions :global(.header__donate) {
-    display: none;
-  }
-
-  @media (min-width: 480px) {
-    .header__actions :global(.header__donate) {
-      display: inline-flex;
-    }
-  }
-</style>

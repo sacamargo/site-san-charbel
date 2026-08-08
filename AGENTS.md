@@ -38,8 +38,23 @@ npm run preview
 
 Para levantar el servidor en segundo plano, usar `astro dev --background` y gestionarlo con `astro dev stop`, `astro dev status` y `astro dev logs`.
 
+## Diseño
+
+`docs/DESIGN.md` es el sistema de diseño, derivado del mockup en `docs/mockups/inicio.png`.
+Los valores viven en el bloque `@theme` de `src/styles/global.css`; el documento explica el porqué.
+
+Tres reglas que es fácil romper sin darse cuenta:
+
+- **Tailwind en el marcado, sin `<style>` scoped.** Nunca escribas un hex en un componente: si
+  falta un color, se añade al `@theme` y se comprueba su contraste antes de usarlo.
+- **`gold-500` es solo ornamento** (2.54:1 sobre marfil). Cualquier dorado que signifique algo
+  —enlaces, iconos informativos— usa `gold-600`.
+- **No borres el bloque `fonts` de `astro.config.mjs`.** Con SSR el fallo no aparece en el build:
+  revienta en tiempo de petición y toda la tipografía cae a la del navegador.
+
 ## Documentación de referencia
 
+- `docs/DESIGN.md`: sistema de diseño y estructura de la portada.
 - `docs/SETUP.md`: configuración local y Supabase DEV.
 - `docs/PROJECT-CONTEXT.md`: alcance del producto y decisiones de MVP.
 - `src/lib/supabase/server.ts`: cliente Supabase para SSR y cookies.

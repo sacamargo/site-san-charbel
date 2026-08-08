@@ -1,178 +1,57 @@
 ---
 /**
- * Button — Sistema de diseño §6.2
+ * Button — botón y enlace-botón del sitio.
  *
- * Todos los botones son pill (--radius-full), sin excepción: es la firma
- * visual más reconocible de los mockups (§3.2).
+ * El diseño usa dos: el oliva relleno (acción principal) y el enlace con
+ * flecha (todos los "Ver todos" / "Más información").
  *
- * Regla de composición: una sola variante `primary` por bloque.
- * `whatsapp` es el único botón verde del sitio (§1.3.3).
+ * Altura mínima táctil de 44px en todas las variantes: el padding por sí solo
+ * no llega, así que `min-h-11` es el que hace el trabajo y no se quita.
  */
 import Icon from './Icon.astro';
 import type { IconName } from './icons';
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'outline-on-dark' | 'tertiary' | 'ghost-link' | 'whatsapp';
-  size?: 'sm' | 'md' | 'lg';
-  /** Si viene, se renderiza <a>; si no, <button>. */
+  variant?: 'primary' | 'outline' | 'link';
   href?: string;
-  icon?: IconName;
-  /** Icono a la derecha en vez de a la izquierda (p. ej. "Leer más →"). */
-  iconEnd?: IconName;
   type?: 'button' | 'submit';
+  icon?: IconName;
+  iconEnd?: IconName;
   class?: string;
   [key: string]: unknown;
 }
 
 const {
   variant = 'primary',
-  size = 'md',
   href,
+  type = 'button',
   icon,
   iconEnd,
-  type = 'button',
   class: className,
   ...rest
 } = Astro.props;
 
 const Tag = href ? 'a' : 'button';
-const classes = ['btn', `btn--${variant}`, `btn--${size}`, className];
+
+const base =
+  'inline-flex min-h-11 items-center justify-center gap-2 text-small font-semibold no-underline transition-colors';
+
+const variantes = {
+  primary: 'rounded-pill bg-olive-700 px-6 py-3 text-on-dark hover:bg-olive-600',
+  outline:
+    'rounded-pill border border-olive-700 px-6 py-3 text-olive-700 hover:bg-olive-700 hover:text-on-dark',
+  // gold-600 y no gold-500: como texto, el 500 no llega ni a 3:1 sobre marfil.
+  link: 'text-gold-600 hover:text-olive-700 hover:underline',
+} as const;
 ---
 
-<Tag class:list={classes} href={href} type={href ? undefined : type} {...rest}>
+<Tag
+  href={href}
+  type={href ? undefined : type}
+  class:list={[base, variantes[variant], className]}
+  {...rest}
+>
   {icon && <Icon name={icon} size={18} />}
   <span><slot /></span>
-  {iconEnd && <Icon name={iconEnd} size={18} />}
+  {iconEnd && <Icon name={iconEnd} size={16} />}
 </Tag>
-
-<style>
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-8);
-
-    font-family: var(--font-body);
-    font-size: var(--step-body-s);
-    font-weight: var(--fw-semibold);
-    line-height: 1.2;
-    text-align: center;
-    text-decoration: none;
-
-    border: 1px solid transparent;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      color 150ms ease,
-      border-color 150ms ease,
-      box-shadow 150ms ease,
-      transform 100ms ease;
-  }
-
-  /* --- Tamaños — §6.2 ---------------------------------------------------
-     min-block-size: 44px es el blanco táctil mínimo de §6.2 y §10, y en `sm`
-     está haciendo el trabajo de verdad: 8px+8px de padding más la interlínea
-     solo llegan a ~32px. No lo quites al ajustar el padding. */
-  .btn--sm {
-    padding: var(--space-8) var(--space-16);
-    min-block-size: 44px;
-  }
-
-  .btn--md {
-    padding: var(--space-12) var(--space-24);
-    min-block-size: 44px;
-  }
-
-  .btn--lg {
-    padding: var(--space-16) var(--space-32);
-    min-block-size: 48px;
-    font-size: var(--step-body);
-  }
-
-  /* --- Variantes — §6.2 ------------------------------------------------- */
-
-  .btn--primary {
-    background-color: var(--gold-500);
-    color: var(--brown-900);
-  }
-
-  .btn--primary:hover {
-    background-color: var(--gold-600);
-    color: var(--brown-900);
-  }
-
-  .btn--secondary {
-    background-color: var(--white);
-    color: var(--text-900);
-  }
-
-  .btn--secondary:hover {
-    background-color: var(--cream-100);
-    color: var(--text-900);
-    box-shadow: var(--shadow-md);
-  }
-
-  /* Perfilado sobre imagen oscura — solo dentro de un hero o banda oscura.
-     Sobre fondo claro es ilegible; ahí va `secondary` o `tertiary`. */
-  .btn--outline-on-dark {
-    background-color: transparent;
-    color: var(--text-on-dark);
-    border-color: rgba(251, 249, 245, 0.45);
-  }
-
-  .btn--outline-on-dark:hover {
-    background-color: rgba(251, 249, 245, 0.12);
-    color: var(--text-on-dark);
-    border-color: var(--text-on-dark);
-  }
-
-  .btn--tertiary {
-    background-color: transparent;
-    /* §1.5 — dorado como texto sobre claro exige --gold-700 para pasar AA. */
-    color: var(--color-accent-text);
-    border-color: var(--gold-300);
-  }
-
-  .btn--tertiary:hover {
-    background-color: var(--gold-100);
-    color: var(--color-accent-text);
-  }
-
-  /* Enlace con forma de texto: sin caja, pero conserva el blanco táctil. */
-  .btn--ghost-link {
-    padding-inline: 0;
-    background-color: transparent;
-    color: var(--color-accent-text);
-  }
-
-  .btn--ghost-link:hover {
-    color: var(--color-accent-text);
-    text-decoration: underline;
-  }
-
-  /* §1.3.3 — único botón verde del sitio. Se justifica porque WhatsApp ya es
-     verde en la cabeza de todo el mundo. */
-  .btn--whatsapp {
-    background-color: var(--green-700);
-    color: var(--text-on-dark);
-  }
-
-  .btn--whatsapp:hover {
-    background-color: color-mix(in srgb, var(--green-700) 92%, black);
-    color: var(--text-on-dark);
-  }
-
-  /* --- Estados — §1.6 --------------------------------------------------- */
-
-  .btn:active {
-    transform: translateY(1px);
-  }
-
-  .btn:disabled,
-  .btn[aria-disabled='true'] {
-    opacity: 0.45;
-    cursor: not-allowed;
-    transform: none;
-  }
-</style>

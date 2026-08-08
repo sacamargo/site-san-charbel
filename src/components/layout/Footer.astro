@@ -1,0 +1,106 @@
+---
+/**
+ * Footer — pie de página en oliva oscuro.
+ *
+ * El oliva del pie es el mismo color estructural de los botones: es lo que
+ * cierra la página y ancla la marca. Cuatro zonas: marca, enlaces, redes y una
+ * cita en serif itálica.
+ */
+import Brand from './Brand.astro';
+import { navegacion } from '@/data/navigation';
+import { parroquia } from '@/data/parroquia';
+
+const anio = new Date().getFullYear();
+
+const redes = [
+  { nombre: 'Facebook', href: parroquia.facebook, icono: 'facebook' },
+  { nombre: 'Instagram', href: parroquia.instagram, icono: 'instagram' },
+  { nombre: 'YouTube', href: parroquia.youtube, icono: 'youtube' },
+] as const;
+
+const trazos: Record<string, string> = {
+  facebook: 'M14 8.5h2.5V5.5H14c-2 0-3.5 1.5-3.5 3.5v2H8.5v3h2v7h3v-7H16l.5-3h-2.5V9c0-.3.2-.5.5-.5Z',
+  instagram:
+    'M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4Zm4.5 5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm5-1.2v.01',
+  youtube:
+    'M21.5 8.2a2.5 2.5 0 0 0-1.8-1.8C18.1 6 12 6 12 6s-6.1 0-7.7.4A2.5 2.5 0 0 0 2.5 8.2 26 26 0 0 0 2.1 12c0 1.3.1 2.5.4 3.8a2.5 2.5 0 0 0 1.8 1.8C5.9 18 12 18 12 18s6.1 0 7.7-.4a2.5 2.5 0 0 0 1.8-1.8c.3-1.3.4-2.5.4-3.8s-.1-2.5-.4-3.8ZM10 15V9l5.2 3L10 15Z',
+};
+---
+
+<footer class="mt-24 bg-olive-900 text-on-dark">
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6">
+    <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr] md:gap-12">
+      {/* Marca */}
+      <div>
+        <Brand tone="light" href={null} />
+        <p class="mt-5 max-w-xs text-small text-on-dark-muted">
+          Una comunidad que ora, celebra y sirve con amor, bajo la intercesión de San Chárbel
+          Makhlouf.
+        </p>
+      </div>
+
+      {/* Enlaces */}
+      <nav aria-labelledby="pie-enlaces">
+        <h2 id="pie-enlaces" class="text-overline font-semibold tracking-[0.14em] text-on-dark uppercase">
+          Enlaces
+        </h2>
+        <ul class="mt-4 flex flex-col gap-1" role="list">
+          {
+            navegacion.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class="flex min-h-11 items-center text-small text-on-dark-muted no-underline transition-colors hover:text-gold-300"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      {/* Redes y contacto */}
+      <div>
+        <h2 class="text-overline font-semibold tracking-[0.14em] text-on-dark uppercase">Síguenos</h2>
+        <ul class="mt-4 flex gap-3" role="list">
+          {
+            redes.map((red) => (
+              <li>
+                <a
+                  href={red.href ?? '#'}
+                  aria-disabled={red.href ? undefined : 'true'}
+                  class="grid size-11 place-items-center rounded-pill border border-on-dark/25 text-on-dark transition-colors hover:border-gold-300 hover:text-gold-300"
+                >
+                  <span class="sr-only">{red.nombre}</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    class="size-5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d={trazos[red.icono]} />
+                  </svg>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p class="mt-6 font-display text-[0.95rem] italic text-on-dark-muted">
+          «Que el Señor de los Milagros y San Chárbel guíen y bendigan a nuestra comunidad.»
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-12 border-t border-on-dark/15 pt-6 text-center">
+      <p class="text-overline text-on-dark-muted">
+        © {anio} {parroquia.nombre}. Todos los derechos reservados.
+      </p>
+    </div>
+  </div>
+</footer>

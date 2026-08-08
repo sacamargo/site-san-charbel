@@ -41,6 +41,18 @@ export const icons = {
   // Contacto
   phone:
     '<path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/>',
+
+  // Sacramentos y servicios (diseño nuevo)
+  droplet: '<path d="M12 2.7 6.8 7.9a7.3 7.3 0 1 0 10.4 0Z"/>',
+  rings:
+    '<circle cx="9" cy="15" r="5.5"/><circle cx="15" cy="15" r="5.5"/><path d="M9.5 5.5 12 3l2.5 2.5"/>',
+  chalice:
+    '<path d="M7 3h10"/><path d="M7.5 3v3.5a4.5 4.5 0 0 0 9 0V3"/><path d="M12 11v7"/><path d="M8.5 21h7"/><path d="M9.5 21a2.5 2.5 0 0 1 5 0"/>',
+  flame: '<path d="M12 3c2.2 3.2 4.2 4.8 4.2 8.2a4.2 4.2 0 0 1-8.4 0C7.8 7.8 9.8 6.2 12 3Z"/>',
+  cross: '<path d="M12 3v18"/><path d="M7 8h10"/>',
+  hands:
+    '<path d="M8 13V6.5a1.75 1.75 0 0 1 3.5 0V11"/><path d="M11.5 11V4.5a1.75 1.75 0 0 1 3.5 0V13"/><path d="M15 11.5a1.75 1.75 0 0 1 3.5 0V15a6.5 6.5 0 0 1-6.5 6.5h-1A6.5 6.5 0 0 1 4.5 15v-2.5a1.75 1.75 0 0 1 3.5 0"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-5-5L5 20"/>',
   mail: '<path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/>',
 } as const;
 

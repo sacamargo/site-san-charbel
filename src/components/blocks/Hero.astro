@@ -1,149 +1,119 @@
 ---
 /**
- * Hero — Sistema de diseño §6.5
+ * Hero — portada.
  *
- * Sólo está implementada la variante `home` (§7.1, bloque 2). Las variantes
- * `page`, `light` y `detail` se construyen cuando existan sus páginas; no se
- * adelantan tres layouts sin usar.
+ * Layout partido: texto a la izquierda sobre marfil, foto en un panel a la
+ * derecha que sangra hasta el borde.
  *
- * La altura de 620px no es decorativa: junto con la superposición de -72px de
- * la InfoBar es lo que hace que el bloque 3 quede visible sin scroll (§7.1).
- * Ver la excepción para viewports bajos en tokens.css.
+ * Por qué un panel y no la foto a todo el ancho: el hero mide ~615px de alto y
+ * la foto es 3:2. Estirada a 1920px habría que tirar el 52% del alto, y ahí
+ * vive el crucifijo. En un panel del 48% del ancho el recorte vertical baja a
+ * ~17% en el peor caso y a 0% en las anchuras corrientes.
+ *
+ * El hueco claro para el texto lo pone ESTE layout, no la imagen. La foto llena
+ * su encuadre de borde a borde; si alguien la sustituye por una con media pared
+ * vacía, el vacío se cuenta dos veces y el presbiterio se arrincona.
+ *
+ * Bajo lg no hay sitio para dos columnas: la foto pasa a fondo a sangrado con
+ * un velo vertical que rescata el contraste del texto.
  */
 import { Image } from 'astro:assets';
-import Container from '@/components/layout/Container.astro';
 import Button from '@/components/ui/Button.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import heroInicio from '@/assets/hero-inicio.png';
 
 interface Props {
-  variant?: 'home';
+  eyebrow: string;
   titulo: string;
-  subtitulo?: string;
-  /** Imagen de fondo, importada desde src/assets para que Astro la optimice. */
-  imagen: ImageMetadata;
+  class?: string;
 }
 
-const { titulo, subtitulo, imagen } = Astro.props;
+const { eyebrow, titulo, class: className } = Astro.props;
 ---
 
-<section class="hero" aria-label="Presentación">
-  {/* alt="" a propósito: la imagen es fondo decorativo y el <h1> encima ya
-      comunica el mensaje. Repetirlo en el alt sería ruido para el lector de
-      pantalla (§5.2).
-      Es el elemento LCP de la página, de ahí eager + fetchpriority. */}
-  <Image
-    class="hero__media"
-    src={imagen}
-    alt=""
-    widths={[640, 960, 1280, 1536]}
-    sizes="100vw"
-    loading="eager"
-    fetchpriority="high"
-  />
-  <div class="hero__overlay" aria-hidden="true"></div>
+<section class:list={['relative isolate overflow-hidden bg-ivory', className]} aria-label="Presentación">
+  {/* El contenedor se reposiciona en lg; la imagen es una sola.
 
-  <Container class="hero__inner">
-    <div class="hero__content">
-      <h1 class="t-display-l hero__title">{titulo}</h1>
-      {subtitulo && <p class="t-body-l hero__subtitle">{subtitulo}</p>}
+      La línea divisoria es responsive por un motivo medido: el bloque de texto
+      tiene ancho fijo (max-w-lg) dentro de un contenedor que topa en 1200px y
+      se centra, así que su borde derecho cae en un PORCENTAJE distinto según
+      la anchura — 52.3% a 1024px pero 45-46% de 1280 en adelante.
+      Con un único valor, o se solapa con el texto abajo o desperdicia espacio
+      arriba. Estos valores están en el límite: dejan ~7px de holgura a 1024 y
+      13-38px de 1280 en adelante. **No se puede empujar más a la izquierda sin
+      estrechar antes el bloque de texto** (hoy max-w-lg).
 
-      <div class="hero__actions">
-        <Button variant="primary" size="lg" href="/horarios" icon="clock">
-          Ver horarios de misas
-        </Button>
-        <Button variant="outline-on-dark" size="lg" href="/agenda" icon="calendar-days">
-          Próximas celebraciones
-        </Button>
+      La línea que se PERCIBE no es este borde, sino el punto medio del fundido
+      de la máscara: por eso el degradado es del 14% y no del 20%. */}
+  <div class="absolute inset-0 -z-10 lg:left-[48%] xl:left-[44%]">
+    <Image
+      src={heroInicio}
+      alt=""
+      widths={[640, 960, 1280, 1536]}
+      sizes="(min-width: 1024px) 48vw, 100vw"
+      loading="eager"
+      fetchpriority="high"
+      class="size-full object-cover object-center lg:[mask-image:linear-gradient(to_right,transparent_0,black_14%)] lg:[-webkit-mask-image:linear-gradient(to_right,transparent_0,black_14%)]"
+    />
+  </div>
+
+  {/* Velo vertical, solo bajo lg: ahí la foto queda detrás del texto. */}
+  <div
+    class="absolute inset-0 -z-10 bg-gradient-to-b from-ivory via-ivory/90 to-ivory/50 lg:hidden"
+    aria-hidden="true"
+  >
+  </div>
+
+  {/* --- Lado izquierdo, solo en lg: gradiente cálido + rama ---------------
+      El gradiente va de arena suave en el borde izquierdo a marfil hacia el
+      centro, como en el mockup. Se detiene en `sand-soft` y NO llega a `sand`:
+      medido, el eyebrow dorado a 12px da 5.27:1 sobre sand-soft pero cae a
+      4.30:1 sobre sand, por debajo del mínimo. Ese es el techo del gradiente.
+
+      Termina en `transparent`, NO en marfil opaco. Esta capa se solapa con el
+      borde izquierdo de la foto —ambas están en -z-10 y esta va después en el
+      DOM, así que pinta encima—; acabar en marfil opaco tapaba el fundido de
+      la máscara y dejaba un corte vertical duro. El marfil de fondo lo pone la
+      sección, así que `transparent` se ve igual y deja pasar la foto. */}
+  <div
+    class="absolute inset-y-0 left-0 -z-10 hidden w-[58%] bg-[linear-gradient(105deg,var(--color-sand-soft)_0%,color-mix(in_srgb,var(--color-sand-soft)_45%,var(--color-ivory))_38%,transparent_74%)] lg:block"
+    aria-hidden="true"
+  >
+  </div>
+
+  {/* Rama de olivo pegada al borde izquierdo. Ornamento puro: por eso vive
+      aquí y no dentro de la foto — así podemos moverla, atenuarla o quitarla
+      sin regenerar la imagen. */}
+  <Watermark class="top-1/2 left-[-1.5rem] -z-10 hidden w-36 -translate-y-1/2 text-olive-700 opacity-[0.055] lg:block" />
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-20 md:px-6 lg:py-32">
+    {/* El ancho del texto es lo que fija hasta dónde puede irse la divisoria a
+        la izquierda: el panel no puede empezar antes de que acabe el texto.
+        Se estrechó de max-w-lg (512px) a max-w-md (448px) justo para poder
+        mover la línea. Si vuelve a crecer, hay que retrasar el panel. */}
+    <div class="max-w-md">
+      <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+        {eyebrow}
+      </p>
+
+      <h1 class="mt-4 font-display text-display font-bold text-ink">{titulo}</h1>
+
+      <p class="mt-5 text-body text-ink-soft">
+        <slot />
+      </p>
+
+      {/* Separador ornamental con la cruz. Decorativo. */}
+      <div class="mt-8 flex items-center gap-3" aria-hidden="true">
+        <span class="h-px w-16 bg-gold-500/70"></span>
+        <svg viewBox="0 0 24 24" class="size-4 text-gold-500" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 4v16M7 9h10" stroke-linecap="round"></path>
+        </svg>
+        <span class="h-px w-16 bg-gold-500/70"></span>
       </div>
+
+      <Button href="/san-charbel" iconEnd="arrow-right" class="mt-8">
+        Conoce nuestra comunidad
+      </Button>
     </div>
-  </Container>
+  </div>
 </section>
-
-<style>
-  .hero {
-    position: relative;
-    display: flex;
-    align-items: center;
-    /* min-block-size y no block-size: el texto en español es más largo que en
-       inglés y no debe desbordar una caja fija. */
-    min-block-size: max(480px, 72svh);
-    overflow: hidden;
-  }
-
-  /* svh en vez de vh: al colapsar la barra de direcciones en móvil, vh cambia
-     y produce un salto de layout que cuenta contra el CLS (§8.4). */
-
-  @media (min-width: 768px) {
-    .hero {
-      min-block-size: var(--hero-home-h);
-    }
-  }
-
-  .hero__media {
-    position: absolute;
-    inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
-    /* En móvil el viewport es vertical y el recorte se come el ancho: con
-       `center` el santo queda fuera de cuadro y solo se ven las flores. Al 90%
-       la ventana visible cubre el 86% de su figura. */
-    object-position: 90% center;
-  }
-
-  /* §1.4 — las imágenes de hero nunca van limpias. */
-  .hero__overlay {
-    position: absolute;
-    inset: 0;
-    background-image: var(--overlay-hero-dark-movil);
-  }
-
-  @media (min-width: 768px) {
-    .hero__media {
-      /* Aquí ya se ve casi todo el ancho: el santo cae a la derecha por sí
-         solo y el recorte solo sacrifica suelo y techo. */
-      object-position: center;
-    }
-
-    .hero__overlay {
-      background-image: var(--overlay-hero-dark);
-    }
-  }
-
-  .hero :global(.hero__inner) {
-    position: relative;
-    z-index: 1;
-    /* Despeja el encabezado transparente superpuesto. */
-    padding-block-start: calc(var(--header-h) + var(--space-48));
-    padding-block-end: var(--space-96);
-  }
-
-  .hero__content {
-    max-inline-size: 620px; /* §6.5 — texto anclado a la izquierda */
-  }
-
-  .hero__title {
-    color: var(--text-on-dark);
-  }
-
-  .hero__subtitle {
-    margin-block-start: var(--space-20);
-    color: var(--text-on-dark-muted);
-  }
-
-  .hero__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-16);
-    margin-block-start: var(--space-32);
-  }
-
-  /* Bajo sm los dos botones van apilados y a ancho completo, como en el
-     mockup móvil: a esa anchura, dos botones de contenido variable quedan
-     desalineados y se leen como cajas sueltas. */
-  @media (max-width: 479px) {
-    .hero__actions {
-      flex-direction: column;
-      align-items: stretch;
-    }
-  }
-</style>

@@ -1,221 +1,245 @@
 ---
 /**
- * Inicio — la estructura la manda §7.1 del sistema de diseño.
+ * Inicio — la estructura la manda docs/DESIGN.md, que sale del mockup
+ * (docs/mockups/inicio.png). Si esta página y el doc se contradicen, el error
+ * está aquí.
  *
- * Si esta página y §7.1 se contradicen, el error está aquí. Para cambiar la
- * portada se cambia §7.1 primero.
- *
- *   1. Cabecera                 ✓
- *   2. Portada                  ✓
- *   3. Orientación (InfoBar)    ✓  ← no se mueve, visible sin scroll
- *   4. Fila 3+6+3               ✓  4a Horarios · 4b Celebraciones · 4c Oración
- *   5. Devoción a San Chárbel   ✓  ← no se mueve
- *   6. ¿Qué necesitas?          ✓
- *   7. Vida parroquial          pendiente
- *   8. Noticias + Galería       pendiente
- *   9. Cómo llegar              pendiente
- *  10. Donación                 pendiente
- *  11. Pie                      pendiente
+ *   1. Cabecera            Header
+ *   2. Portada             Hero (claro)
+ *   3. Próximos eventos    EventCard × 3 + estado vacío
+ *   4. Momentos            mosaico de fotos
+ *   5. Horarios de misas   3 tarjetas + foto
+ *   6. San Chárbel         banda arena
+ *   7. Servicios           6 tarjetas
+ *   8. Ubicación           mapa + contacto + foto
+ *   9. Pie                 Footer
  */
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import Section from '@/components/layout/Section.astro';
-import SectionHeader from '@/components/ui/SectionHeader.astro';
-import Button from '@/components/ui/Button.astro';
-import Quote from '@/components/ui/Quote.astro';
 import Hero from '@/components/blocks/Hero.astro';
-import InfoBar from '@/components/blocks/InfoBar.astro';
-import PromoBand from '@/components/blocks/PromoBand.astro';
-import ScheduleCard from '@/components/cards/ScheduleCard.astro';
-import AgendaCard from '@/components/cards/AgendaCard.astro';
-import NeedCard from '@/components/cards/NeedCard.astro';
-import { getMisas } from '@/lib/queries/horarios';
+import ImagePlaceholder from '@/components/blocks/ImagePlaceholder.astro';
+import EventCard from '@/components/cards/EventCard.astro';
+import SectionTitle from '@/components/ui/SectionTitle.astro';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
 import { getProximasCelebraciones } from '@/lib/queries/celebraciones';
+import { getMisas } from '@/lib/queries/horarios';
+import { formatHoras } from '@/lib/format';
+import { servicios } from '@/data/servicios';
 import { parroquia } from '@/data/parroquia';
-import { necesidades } from '@/data/necesidades';
-import { oracionPortada } from '@/data/oraciones';
-import heroInicio from '@/assets/hero-inicio.png';
 
+const eventos = await getProximasCelebraciones(3);
 const misas = await getMisas();
-const celebraciones = await getProximasCelebraciones(3);
+
+// El mosaico del diseño: una foto grande y seis pequeñas.
+const momentos = [
+  'Celebración de la Eucaristía',
+  'Comunidad reunida',
+  'Jornada parroquial',
+  'Catequesis',
+  'Grupo juvenil',
+  'Encuentro de familias',
+  'Oración comunitaria',
+];
 ---
 
 <BaseLayout
   title="Inicio"
-  description={`${parroquia.nombre} — ${parroquia.barrio}, ${parroquia.ciudad}. Horarios de misas, sacramentos, celebraciones y vida parroquial.`}
-  headerVariant="transparent"
+  description={`${parroquia.nombre} — ${parroquia.barrio}, ${parroquia.ciudad}. Horarios de misas, servicios y vida parroquial.`}
 >
   {/* 2 — Portada */}
-  <Hero
-    titulo="Un lugar para encontrarte con Dios"
-    subtitulo={`Una comunidad que vive la fe, anuncia el Evangelio y sirve con amor en ${parroquia.barrio}, ${parroquia.ciudad}.`}
-    imagen={heroInicio}
-  />
+  <Hero eyebrow="Bienvenido a" titulo="Parroquia San Chárbel">
+    Somos una comunidad que ora, celebra y sirve con amor, bajo la intercesión de San Chárbel
+    Makhlouf.
+  </Hero>
 
-  {/* 3 — Orientación. No se mueve. */}
-  <InfoBar />
+  {/* 3 — Próximos eventos */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-eventos">
+    <SectionTitle id="t-eventos">Próximos eventos</SectionTitle>
 
-  {/* 4 — Fila de tres columnas (§4.2: 3 + 6 + 3). Apilada en móvil. */}
-  <Section>
-    <div class="fila3">
-      {/* 4a — Horarios de misas */}
-      <section class="fila3__col" aria-labelledby="titulo-horarios" id="horarios">
-        <SectionHeader id="titulo-horarios" title="Horarios de misas" as="h2" />
-        <ul class="apilada" role="list">
+    <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" role="list">
+      {eventos.map((evento) => <li class="flex"><EventCard celebracion={evento} /></li>)}
+
+      {/* Estado vacío: el diseño lo muestra explícitamente, no es relleno.
+          Cuando la agenda quede vacía, esta tarjeta ocupa toda la fila. */}
+      <li class="flex">
+        <div
+          class="flex flex-1 flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface-alt p-8 text-center"
+        >
+          <span class="grid size-12 place-items-center rounded-pill bg-gold-100 text-gold-600">
+            <Icon name="calendar-days" size={22} />
+          </span>
+          <p class="text-small text-muted">No hay más eventos programados por ahora.</p>
+          <Button variant="link" href="/agenda" iconEnd="arrow-right">
+            Consulta la agenda completa
+          </Button>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  {/* 4 — Momentos de la parroquia */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-momentos">
+    <SectionTitle id="t-momentos">Momentos de la parroquia</SectionTitle>
+
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {
+        momentos.map((label, i) => (
+          <ImagePlaceholder
+            label={label}
+            ratio={i === 0 ? '1/1' : '4/3'}
+            class:list={[i === 0 && 'col-span-2 row-span-2']}
+          />
+        ))
+      }
+    </div>
+  </section>
+
+  {/* 5 — Horarios de misas */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-horarios">
+    <SectionTitle id="t-horarios">Horarios de misas</SectionTitle>
+
+    <div class="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-start">
+      <div>
+        <ul class="grid gap-4 sm:grid-cols-3" role="list">
           {
             misas.map((misa) => (
-              <li>
-                <ScheduleCard horario={misa} icono="church" href="/horarios" />
+              <li class="rounded-card border border-line bg-surface p-5 shadow-card">
+                <h3 class="font-display text-h3 font-bold text-ink">{misa.dia}</h3>
+                <p class="mt-2 text-small text-ink-soft">
+                  {formatHoras(misa.horas, ' · ')}
+                </p>
               </li>
             ))
           }
         </ul>
-        <div class="fila3__cta">
-          <Button variant="tertiary" href="/horarios" iconEnd="arrow-right">
-            Ver todos los horarios
-          </Button>
-        </div>
-      </section>
 
-      {/* 4b — Próximas celebraciones. La columna ancha. */}
-      <section class="fila3__col fila3__col--wide" aria-labelledby="titulo-agenda">
-        <SectionHeader id="titulo-agenda" title="Próximas celebraciones" as="h2" />
-        <ul class="agenda-lista" role="list">
-          {
-            celebraciones.map((celebracion) => (
-              <li>
-                <AgendaCard celebracion={celebracion} />
-              </li>
-            ))
-          }
-        </ul>
-        <div class="fila3__cta">
-          <Button variant="tertiary" href="/agenda" iconEnd="arrow-right">
-            Ver toda la agenda
-          </Button>
-        </div>
-      </section>
+        <Button variant="link" href="/horarios" iconEnd="arrow-right" class="mt-6">
+          Ver todos los horarios
+        </Button>
+      </div>
 
-      {/* 4c — Oración */}
-      <section class="fila3__col" aria-labelledby="titulo-oracion">
-        <SectionHeader id="titulo-oracion" title="Oración" as="h2" />
-        <Quote referencia={oracionPortada.referencia} watermark>
-          {oracionPortada.texto}
-        </Quote>
-        <div class="fila3__cta">
-          <Button variant="tertiary" href="/san-charbel/oraciones" iconEnd="arrow-right">
-            Ver todas las oraciones
-          </Button>
-        </div>
-      </section>
+      <ImagePlaceholder label="Interior del templo" ratio="4/3" />
     </div>
-  </Section>
+  </section>
 
-  {/* 5 — Devoción a San Chárbel. No se mueve. */}
-  <Section>
-    <PromoBand
-      titulo="San Chárbel Makhlouf"
-      botonTexto="Pedir una oración"
-      botonHref="/san-charbel/peticiones"
-      botonIcono="heart"
-      retratoPendiente="Retrato de San Chárbel"
-    >
-      Monje libanés, ejemplo de oración, humildad y entrega. Su vida nos inspira a vivir
-      unidos a Dios en lo sencillo de cada día. Deja aquí tu intención y la llevamos al
-      altar.
-    </PromoBand>
-  </Section>
+  {/* 6 — San Chárbel, ruega por nosotros */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-6 md:px-6" aria-labelledby="t-santo">
+    <div class="relative overflow-hidden rounded-band bg-sand-soft">
+      {/* Marca de agua vegetal. Misma rama que el hero: un solo dibujo
+          para el mismo motivo, en vez de dos SVG que se separan con el tiempo. */}
+      <Watermark class="-right-16 -bottom-24 w-32 rotate-[125deg] text-olive-700 opacity-10" />
 
-  {/* 6 — ¿Qué necesitas? */}
-  <Section labelledby="titulo-necesitas">
-    <SectionHeader
-      id="titulo-necesitas"
-      title="¿Qué necesitas?"
-      subtitle="Lo que más nos preguntan, con los requisitos y los pasos en un solo lugar."
-    />
-    <ul class="necesidades-grid" role="list">
+      <div class="relative grid items-center gap-8 p-8 md:grid-cols-[auto_1fr_auto] md:gap-10 md:p-12">
+        <div class="mx-auto w-40 shrink-0 rounded-pill bg-gold-500 p-1 md:mx-0">
+          <ImagePlaceholder label="San Chárbel" ratio="1/1" rounded="pill" />
+        </div>
+
+        <div class="text-center md:text-left">
+          <h2 id="t-santo" class="font-display text-h2 font-bold text-ink">
+            San Chárbel, ruega por nosotros
+          </h2>
+          <p class="mt-3 max-w-prose text-body text-ink-soft">
+            San Chárbel Makhlouf, santo libanés del siglo XIX, ejemplo de oración, humildad y
+            entrega a Dios. Su vida sigue inspirando a miles de fieles en el mundo.
+          </p>
+        </div>
+
+        <Button href="/san-charbel" iconEnd="arrow-right" class="mx-auto md:mx-0">
+          Conoce su historia
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  {/* 7 — Servicios de la parroquia */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-servicios">
+    <SectionTitle id="t-servicios">Servicios de la parroquia</SectionTitle>
+
+    <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" role="list">
       {
-        necesidades.map((n) => (
-          <li>
-            <NeedCard
-              titulo={n.titulo}
-              descripcion={n.descripcion}
-              href={n.href}
-              icono={n.icono}
-            />
+        servicios.map((servicio) => (
+          <li class="flex">
+            <article class="group relative flex flex-1 flex-col gap-3 rounded-card border border-line bg-surface p-6 shadow-card transition-shadow hover:shadow-lift">
+              <span class="grid size-12 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                <Icon name={servicio.icono} size={24} />
+              </span>
+
+              <h3 class="font-display text-h3 font-bold text-ink">{servicio.nombre}</h3>
+              <p class="text-small text-ink-soft">{servicio.descripcion}</p>
+
+              <span class="mt-auto pt-2 text-small font-semibold text-gold-600 group-hover:text-olive-700">
+                <a
+                  href={servicio.href}
+                  class="no-underline after:absolute after:inset-0 after:content-['']"
+                >
+                  Más información →
+                </a>
+              </span>
+            </article>
           </li>
         ))
       }
     </ul>
-  </Section>
+  </section>
+
+  {/* 8 — Ubicación y contacto */}
+  <section
+    id="como-llegar"
+    class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20"
+    aria-labelledby="t-ubicacion"
+  >
+    <SectionTitle id="t-ubicacion">Ubicación y contacto</SectionTitle>
+
+    <div class="grid gap-8 lg:grid-cols-3 lg:items-start">
+      {/* PENDIENTE: el mapa real se carga bajo demanda para no penalizar la
+          carga con el JS de terceros de Google Maps. */}
+      <ImagePlaceholder label="Mapa de ubicación" ratio="4/3" />
+
+      <address class="not-italic">
+        <ul class="flex flex-col gap-5" role="list">
+          <li class="flex gap-3">
+            <span class="mt-0.5 shrink-0 text-gold-600"><Icon name="map-pin" size={20} /></span>
+            <span class="text-body text-ink-soft">
+              {parroquia.direccion}<br />
+              {parroquia.barrio}, {parroquia.ciudad},<br />
+              {parroquia.departamento}, {parroquia.pais}
+            </span>
+          </li>
+
+          <li class="flex gap-3">
+            <span class="mt-0.5 shrink-0 text-gold-600"><Icon name="phone" size={20} /></span>
+            <span class="flex flex-col text-body text-ink-soft">
+              {/* min-h-11: son enlaces sueltos, no tarjetas, así que necesitan
+                  cumplir el blanco táctil por sí mismos. */}
+              <a
+                href={`tel:${parroquia.telefonoFijo.replace(/\D/g, '')}`}
+                class="inline-flex min-h-11 items-center no-underline hover:text-olive-700"
+              >
+                {parroquia.telefonoFijo}
+              </a>
+              <a
+                href={`tel:${parroquia.telefonoMovil.replace(/\D/g, '')}`}
+                class="inline-flex min-h-11 items-center no-underline hover:text-olive-700"
+              >
+                {parroquia.telefonoMovil}
+              </a>
+            </span>
+          </li>
+
+          <li class="flex gap-3">
+            <span class="mt-0.5 shrink-0 text-gold-600"><Icon name="mail" size={20} /></span>
+            <a
+              href={`mailto:${parroquia.email}`}
+              class="inline-flex min-h-11 items-center text-body text-ink-soft no-underline hover:text-olive-700"
+            >
+              {parroquia.email}
+            </a>
+          </li>
+        </ul>
+      </address>
+
+      <ImagePlaceholder label="Fachada del templo" ratio="4/3" />
+    </div>
+  </section>
 </BaseLayout>
-
-<style>
-  /* --- Bloque 4: la fila de tres columnas ------------------------------ */
-
-  .fila3 {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-section);
-  }
-
-  .fila3__col {
-    min-inline-size: 0;
-  }
-
-  .fila3__cta {
-    margin-block-start: var(--space-24);
-  }
-
-  .apilada,
-  .agenda-lista {
-    display: grid;
-    gap: var(--space-grid-gap);
-    margin: 0;
-    padding: 0;
-  }
-
-  /* --- Bloque 6 --------------------------------------------------------- */
-
-  .necesidades-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-grid-gap);
-    margin: 0;
-    padding: 0;
-  }
-
-  /* md ≥ 768px — la agenda ya puede ir en dos columnas dentro de su bloque. */
-  @media (min-width: 768px) {
-    .agenda-lista {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .necesidades-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
-  }
-
-  /* lg ≥ 1024px — §4.2: "Tres columnas del inicio: 3 + 6 + 3".
-     La agenda es la columna ancha y por eso lleva el doble de peso visual. */
-  @media (min-width: 1024px) {
-    .fila3 {
-      grid-template-columns: 3fr 6fr 3fr;
-      gap: var(--space-32);
-      align-items: start;
-    }
-
-    /* Las tres celebraciones van una al lado de otra dentro de la columna
-       ancha, como en el mockup de escritorio. */
-    .agenda-lista {
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-16);
-    }
-  }
-
-  /* Bajo sm los botones de cierre van a ancho completo (§6.2). */
-  @media (max-width: 479px) {
-    .fila3__cta :global(.btn) {
-      inline-size: 100%;
-    }
-  }
-</style>
