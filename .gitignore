@@ -18,6 +18,9 @@ pnpm-debug.log*
 .env
 .env.production
 
+# tira de comprobación del favicon (se regenera con el script)
+scripts/favicon-preview.png
+
 # macOS-specific files
 .DS_Store
 
