@@ -28,6 +28,7 @@ import {
 } from '@/data/san-charbel';
 
 import banner from '@/assets/san-charbel/banner.png';
+import bannerAnimado from '@/assets/conoce-a-san-charbel.gif';
 import sketch from '@/assets/san-charbel/oracion-san-charbel-sketch.png';
 import imgSanaciones from '@/assets/san-charbel/sanaciones-velas.png';
 import imgRespuestas from '@/assets/san-charbel/respuestas-rosario.png';
@@ -46,6 +47,19 @@ const milagroImagenes = {
 >
   {/* 1 — Hero */}
   <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-hero-santo">
+    {/*
+      El GIF es decorativo: el contenido y el texto alternativo viven en el
+      HTML. Para usuarios que reducen movimiento se conserva el banner estático.
+    */}
+    <img
+      src={bannerAnimado.src}
+      alt=""
+      width={bannerAnimado.width}
+      height={bannerAnimado.height}
+      aria-hidden="true"
+      fetchpriority="high"
+      class="absolute inset-0 -z-10 size-full object-cover object-[center_30%] motion-reduce:hidden"
+    />
     <Image
       src={banner}
       alt=""
@@ -53,7 +67,7 @@ const milagroImagenes = {
       sizes="100vw"
       loading="eager"
       fetchpriority="high"
-      class="absolute inset-0 -z-10 size-full object-cover object-[center_30%]"
+      class="absolute inset-0 -z-10 hidden size-full object-cover object-[center_30%] motion-reduce:block"
     />
     {/* Velo suave a la izquierda para legibilidad del texto sobre la foto clara. */}
     <div
