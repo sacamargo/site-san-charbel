@@ -1,0 +1,76 @@
+---
+/**
+ * Portada de la Agenda.
+ *
+ * Sigue el mismo registro claro que el Hero de la portada —arena suave sobre
+ * marfil, eyebrow dorado, rama de olivo— en vez de un bloque oliva oscuro, para
+ * que las dos páginas se lean como el mismo sitio. El gradiente se detiene en
+ * `sand-soft` y NO llega a `sand` por la misma razón medida que documentó
+ * Daniel: el eyebrow a 12px cae por debajo del mínimo sobre `sand`.
+ *
+ * No lleva foto: todavía no hay imágenes reales del templo y el criterio del
+ * equipo es no rellenar con banco de imágenes.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { formatAntiguedad } from '@/lib/agenda/format';
+import type { AgendaStatus } from '@/lib/types';
+
+interface Props {
+  status: AgendaStatus;
+  fetchedAt: Date | null;
+  eventCount: number;
+}
+
+const { status, fetchedAt, eventCount } = Astro.props;
+const mostrarFrescura = status === 'ok' && fetchedAt !== null;
+---
+
+<section class="relative isolate overflow-hidden bg-ivory" aria-label="Presentación">
+  <div
+    class="absolute inset-y-0 left-0 -z-10 w-full bg-[linear-gradient(105deg,var(--color-sand-soft)_0%,color-mix(in_srgb,var(--color-sand-soft)_45%,var(--color-ivory))_42%,transparent_78%)]"
+    aria-hidden="true"
+  >
+  </div>
+
+  <Watermark
+    class="top-1/2 right-[-2rem] -z-10 hidden w-40 -translate-y-1/2 rotate-12 text-olive-700 opacity-[0.055] lg:block"
+  />
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-16 md:px-6 md:py-20">
+    <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+      Parroquia San Chárbel
+    </p>
+
+    <h1 class="mt-4 font-display text-display font-bold text-ink">Agenda</h1>
+
+    <span class="mt-5 block h-0.5 w-14 rounded-pill bg-gold-500" aria-hidden="true"></span>
+
+    <p class="mt-5 max-w-[52ch] text-body text-ink-soft">
+      Celebraciones y actividades de la parroquia, tomadas directamente del calendario parroquial.
+    </p>
+
+    <dl class="mt-10 flex flex-wrap items-start gap-x-12 gap-y-5">
+      <div>
+        <dt class="text-overline font-semibold tracking-[0.12em] text-muted uppercase">
+          Actividades próximas
+        </dt>
+        <dd class="mt-1 font-display text-h2 font-bold tabular-nums text-ink">{eventCount}</dd>
+      </div>
+
+      {
+        mostrarFrescura && (
+          <div>
+            <dt class="text-overline font-semibold tracking-[0.12em] text-muted uppercase">
+              Última consulta
+            </dt>
+            <dd class="mt-2 flex items-center gap-2 text-small text-ink-soft">
+              <Icon name="clock" size={16} class="text-gold-600" />
+              <span>{formatAntiguedad(fetchedAt)}</span>
+            </dd>
+          </div>
+        )
+      }
+    </dl>
+  </div>
+</section>

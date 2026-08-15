@@ -1,0 +1,212 @@
+---
+/**
+ * Vista mensual de solo lectura.
+ *
+ * Cero JavaScript a propósito: la navegación entre meses son enlaces reales
+ * (`?mes=YYYY-MM`) y cada día con actividad ancla a su grupo en la lista de
+ * abajo. Así funciona con teclado, con lector de pantalla y con la conexión
+ * móvil de quien entra desde el barrio.
+ *
+ * Un día con eventos es **un solo destino**, no un enlace por evento: en una
+ * celda de 47px de ancho no caben varios blancos táctiles de 44×44, y §10 no
+ * admite excepción por tamaño de pantalla.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { formatFecha } from '@/lib/format';
+import { formatFranja } from '@/lib/agenda/format';
+import { dayAnchorId } from '@/lib/agenda/ids';
+import { weekdayHeadings } from '@/lib/agenda/month-grid';
+import { anchor } from '@/lib/agenda/window';
+import type { MonthGrid } from '@/lib/types';
+
+interface Props {
+  grid: MonthGrid;
+  /**
+   * Días que tienen grupo en la lista de abajo. Solo esos se enlazan: un ancla
+   * que no lleva a ninguna parte es peor que no tener ancla.
+   */
+  linkableDays: Set<string>;
+  basePath?: string;
+  headingId: string;
+}
+
+const { grid, linkableDays, basePath = '/agenda', headingId } = Astro.props;
+const headings = weekdayHeadings();
+
+/** Cuántos títulos se listan antes de resumir en "+N más". */
+const TITULOS_VISIBLES = 2;
+
+function monthHref(key: string): string {
+  return `${basePath}?mes=${key}#calendario`;
+}
+
+function dayDate(key: string): Date {
+  const [year, month, day] = key.split('-').map(Number) as [number, number, number];
+  return anchor(year, month, day);
+}
+
+const pasoBase =
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-pill border px-4 text-small font-semibold transition-colors';
+const pasoActivo = 'border-line bg-surface text-ink hover:border-olive-700 hover:bg-sand-soft';
+const pasoInactivo = 'border-line text-muted opacity-60';
+---
+
+<section id="calendario" class="scroll-mt-24" aria-labelledby={headingId}>
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="text-overline font-bold tracking-[0.12em] text-gold-600 uppercase">Vista mensual</p>
+      <h2 id={headingId} class="mt-2 font-display text-h2 font-bold text-ink">{grid.label}</h2>
+    </div>
+
+    <div class="flex items-center gap-2">
+      {
+        grid.previousKey ? (
+          <a href={monthHref(grid.previousKey)} rel="prev" class:list={[pasoBase, pasoActivo]}>
+            <Icon name="chevron-left" size={18} />
+            <span class="hidden sm:inline">Anterior</span>
+            <span class="sr-only sm:hidden">Mes anterior</span>
+          </a>
+        ) : (
+          <span aria-disabled="true" class:list={[pasoBase, pasoInactivo]}>
+            <Icon name="chevron-left" size={18} />
+            <span class="hidden sm:inline">Anterior</span>
+            <span class="sr-only sm:hidden">No hay meses anteriores disponibles</span>
+          </span>
+        )
+      }
+
+      {
+        grid.nextKey ? (
+          <a href={monthHref(grid.nextKey)} rel="next" class:list={[pasoBase, pasoActivo]}>
+            <span class="hidden sm:inline">Siguiente</span>
+            <span class="sr-only sm:hidden">Mes siguiente</span>
+            <Icon name="chevron-right" size={18} />
+          </a>
+        ) : (
+          <span aria-disabled="true" class:list={[pasoBase, pasoInactivo]}>
+            <span class="hidden sm:inline">Siguiente</span>
+            <span class="sr-only sm:hidden">No hay meses siguientes disponibles</span>
+            <Icon name="chevron-right" size={18} />
+          </span>
+        )
+      }
+    </div>
+  </div>
+
+  <div class="mt-6 overflow-hidden rounded-band border border-line bg-surface shadow-card">
+    <table class="w-full table-fixed border-collapse">
+      <caption class="sr-only">
+        Calendario de {grid.label}. Los días con actividad enlazan a su detalle en la lista de
+        próximos eventos.
+      </caption>
+
+      <thead>
+        <tr class="bg-surface-alt">
+          {
+            headings.map((heading) => (
+              <th
+                scope="col"
+                class="border-b border-line px-1 py-3.5 text-overline font-bold tracking-[0.12em] text-ink-soft uppercase"
+              >
+                <span aria-hidden="true">{heading.abbrev}</span>
+                <span class="sr-only">{heading.full}</span>
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+
+      <tbody class="[&>tr:last-child>td]:border-b-0 [&>tr>td:last-child]:border-r-0">
+        {
+          grid.weeks.map((week) => (
+            <tr>
+              {week.map((day) => {
+                // Los eventos de los días de relleno pertenecen a otro mes: se
+                // ven al navegar a ese mes. Mostrarlos aquí solo ensucia.
+                const total = day.inMonth ? day.events.length : 0;
+                const enlazable = total > 0 && linkableDays.has(day.key);
+                const Celda = enlazable ? 'a' : 'div';
+
+                return (
+                  <td
+                    class:list={[
+                      'h-16 border-r border-b border-line p-0 align-top sm:h-28',
+                      !day.inMonth && 'bg-ivory',
+                    ]}
+                  >
+                    <Celda
+                      href={enlazable ? `#${dayAnchorId(day.key)}` : undefined}
+                      class:list={[
+                        'flex h-full w-full flex-col p-1 sm:p-2',
+                        enlazable && 'transition-colors hover:bg-sand-soft focus-visible:bg-sand-soft',
+                      ]}
+                    >
+                      {/* La fecha completa, el "hoy" y el conteo solo para lector de
+                          pantalla: en pantalla ya lo dicen el número, el círculo y
+                          los títulos. */}
+                      <span class="sr-only">
+                        {formatFecha(dayDate(day.key))}
+                        {day.isToday ? ', hoy' : ''}
+                        {total === 0
+                          ? ', sin actividades'
+                          : `, ${total} ${total === 1 ? 'actividad' : 'actividades'}:`}
+                      </span>
+
+                      <span
+                        aria-hidden="true"
+                        class:list={[
+                          'flex size-7 shrink-0 items-center justify-center text-small tabular-nums',
+                          day.isToday && 'rounded-pill bg-olive-700 font-bold text-on-dark',
+                          !day.isToday && total > 0 && 'font-bold text-ink',
+                          !day.isToday && total === 0 && day.inMonth && 'text-ink-soft',
+                          !day.inMonth && 'text-muted',
+                        ]}
+                      >
+                        {day.dayOfMonth}
+                      </span>
+
+                      {total > 0 && (
+                        <>
+                          {/* Móvil: puntos. Decorativos; el conteo ya se anunció arriba. */}
+                          <span aria-hidden="true" class="mt-1 flex gap-1 pl-1 sm:hidden">
+                            {day.events.slice(0, 3).map(() => (
+                              <span class="block size-1.5 rounded-pill bg-olive-700" />
+                            ))}
+                          </span>
+
+                          {/* Escritorio: los títulos se ven. En móvil siguen leyéndose. */}
+                          <ul class="mt-1 space-y-1 sr-only sm:not-sr-only sm:block" role="list">
+                            {day.events.slice(0, TITULOS_VISIBLES).map((event) => (
+                              <li class="flex items-start gap-1.5 text-small leading-snug text-ink">
+                                <span
+                                  aria-hidden="true"
+                                  class="mt-1.5 block size-1.5 shrink-0 rounded-pill bg-gold-500"
+                                />
+                                <span class="line-clamp-1">{event.title}</span>
+                                <span class="sr-only">, {formatFranja(event)}</span>
+                              </li>
+                            ))}
+                            {total > TITULOS_VISIBLES && (
+                              <li class="pl-3 text-small font-semibold text-gold-600">
+                                +{total - TITULOS_VISIBLES} más
+                              </li>
+                            )}
+                          </ul>
+                        </>
+                      )}
+                    </Celda>
+                  </td>
+                );
+              })}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="mt-4 flex items-center gap-2 text-small text-muted">
+    <span aria-hidden="true" class="block size-1.5 shrink-0 rounded-pill bg-gold-500"></span>
+    Los días con actividad están marcados. Toca uno para ver el detalle.
+  </p>
+</section>
