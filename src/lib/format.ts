@@ -5,8 +5,8 @@
  * Fecha: "3 de julio de 2026".  Hora: "6:00 p.m." (con puntos, como en los mockups).
  */
 
-export const LOCALE = 'es-CO';
-export const TIME_ZONE = 'America/Bogota';
+const LOCALE = 'es-CO';
+const TIME_ZONE = 'America/Bogota';
 
 /**
  * Normaliza el marcador de meridiano a la forma exacta que pide §9.4.
