@@ -26,3 +26,18 @@ export async function getProximasCelebraciones(limite = 3): Promise<Celebracion[
   const todas = await getCelebraciones();
   return todas.slice(0, limite);
 }
+
+/**
+ * Cuántas celebraciones publicadas hay EN TOTAL, sin recortar.
+ *
+ * La portada la necesita para saber si está enseñando todas o solo las
+ * primeras: la tarjeta de "no hay más eventos" solo puede decirse cuando el
+ * total no supera lo que se muestra. Sin este dato, esa tarjeta afirmaba algo
+ * que no podía comprobar.
+ *
+ * Con Supabase esto será un `count`, que no trae filas.
+ */
+export async function contarCelebraciones(): Promise<number> {
+  const todas = await getCelebraciones();
+  return todas.length;
+}

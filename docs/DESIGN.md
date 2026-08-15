@@ -38,6 +38,13 @@ grande. Por eso está partido en dos tokens y la distinción no es cosmética:
 - **`gold-600` → cualquier dorado que signifique algo.** Enlaces, iconos informativos. Mide
   6.68:1 sobre marfil y 5.25:1 sobre la foto del hero.
 
+**Excepción medida: sobre fondo oscuro, el dorado SÍ es superficie.** La regla de arriba —el
+dorado nunca es superficie— vale sobre marfil. Sobre la foto oscura del hero se invierte: el
+botón oliva mide **1.06:1** contra el fondo, o sea que desaparece como forma y solo se lee su
+texto, por debajo del 3:1 que WCAG 1.4.11 exige a un componente de interfaz. `gold-500` llega a
+3.41:1 y es el único color de la paleta que lo consigue. De ahí la variante `primary-on-dark`
+del botón (§6.2 del componente): fondo `gold-500`, texto `olive-900`.
+
 El tono se oscureció al medirlo *sobre la página compuesta*: pasaba sobre marfil plano pero
 fallaba encima de la foto. Es justo el caso que las parejas de tokens no detectan.
 
@@ -97,10 +104,10 @@ o Tailwind generaría dos utilidades `text-body` distintas. El color del cuerpo 
 | # | Sección | Reparto |
 |---|---|---|
 | 1 | Cabecera | 4 ítems, marfil, subrayado dorado en el activo |
-| 2 | Portada | Hero **claro**: foto a la derecha, texto en tinta sobre marfil |
-| 3 | Próximos eventos | 3 tarjetas + **tarjeta de estado vacío** |
-| 4 | Momentos de la parroquia | Mosaico: una foto grande + seis pequeñas |
-| 5 | Horarios de misas | 3 tarjetas + foto |
+| 2 | Portada | Hero **oscuro**: foto a sangrado, velo encima y texto claro sobre ella |
+| 3 | Próximos eventos | Carrusel con puntos de paginación + **tarjeta de estado vacío** |
+| 4 | Momentos de la parroquia | Carrusel horizontal: misma altura, ancho variable |
+| 5 | Horarios de misas | Lista de horarios (día + horas) + foto |
 | 6 | San Chárbel, ruega por nosotros | Banda arena con marca de agua vegetal |
 | 7 | Servicios de la parroquia | 6 tarjetas, 3×2 |
 | 8 | Ubicación y contacto | Mapa + datos + foto |
@@ -108,6 +115,21 @@ o Tailwind generaría dos utilidades `text-body` distintas. El color del cuerpo 
 
 El **estado vacío** de la sección 3 es una pantalla real que el diseño especifica, no relleno:
 cuando no haya eventos, es lo que ve la gente.
+
+**Tres secciones se apartan del mockup a propósito.** Conviene saberlo antes de "corregirlas":
+
+- La **portada** ya no es clara con la foto a un lado, sino la foto a sangrado completo con un velo
+  oscuro y el texto encima. Los porcentajes del velo están calibrados a esa foto concreta y no se
+  pueden copiar a otra: el detalle está en `Hero.astro`.
+- **Momentos** era un mosaico de huecos fijos —una foto grande y cinco pequeñas, no seis como decía
+  antes esta tabla— y ahora es un carrusel. El motivo es que la parroquia tiene muchas fotos y
+  seguirán llegando: un mosaico no crece, o sobran huecos o sobran fotos. Además, dando a todas la
+  misma altura y dejando que el ancho salga de su proporción, no se recorta ninguna; en las ranuras
+  fijas una foto vertical perdía el 44% del alto.
+- **Horarios de misas** lleva los horarios en una lista apilada —día a la izquierda, horas a la
+  derecha— en vez de tres tarjetas en fila. En fila son bajas (un título y una línea de horas) y
+  junto a la foto vertical dejaban ~297px de hueco muerto debajo. Apiladas y con `flex-1`, las
+  filas se reparten el alto hasta encontrarse con la foto.
 
 **Menú:** Inicio · San Chárbel · Agenda · Servicios. Sin botón "Donar".
 "Chárbel" **lleva tilde en todo texto visible** aunque el mockup la omita en el logo: es un

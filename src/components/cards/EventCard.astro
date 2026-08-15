@@ -7,10 +7,45 @@
  * Toda la tarjeta es pulsable: el enlace envuelve el título y se estira con
  * ::after. El z-index del ::after importa — sin él, la foto queda por encima y
  * la mitad superior de la tarjeta deja de navegar.
+ *
+ * LA RANURA ES CUADRADA, y lo era 3:2 apaisada. Se cambió porque lo que la
+ * parroquia publica son flyers, y los flyers son verticales: en 3:2 se perdía
+ * el 47% de cada uno. Lo que conserva cada forma:
+ *   · flyer vertical (0.80) → el 80% del alto  (antes 53%)
+ *   · foto cuadrada         → entera           (antes 67%)
+ *   · foto apaisada (1.5)   → el 67% del ancho (antes entera)
+ * El ancho renderizado no cambia —272px a 1440— así que `widths` y `sizes`
+ * siguen valiendo; lo único que crece es el alto.
+ *
+ * EL RECORTE — `object-top`, y no es cosmético. Ojo, que con la ranura cuadrada
+ * el recorte ya no es siempre vertical:
+ *   · Vertical → recorta alto, y arriba están la imagen y el título del flyer;
+ *     abajo la cita, los teléfonos y el QR. Centrado se come el título.
+ *   · Cuadrada → no se recorta nada, el anclaje da igual.
+ *   · Apaisada → recorta A LO ANCHO. `object-top` es `center top` y la parte
+ *     horizontal es `center`, así que quita lo mismo por los dos lados.
+ * En la fotografía devocional lo que identifica la escena —la cruz, la
+ * custodia— está arriba: centrada, la foto de la adoración decapitaba la cruz
+ * de la custodia, el mismo fallo del crucifijo en el hero.
+ *
+ * NO es una regla que valga sola: es la que acierta en las fotos que hay.
+ * COMPRUEBA CADA FOTO NUEVA. Si alguna necesita otro anclaje, la salida es un
+ * campo de encuadre por celebración, no cambiar este valor para todas.
+ *
+ * Con la ranura cuadrada el flyer llega casi entero, pero su letra pequeña
+ * sigue pudiendo caer. Es aceptable AQUÍ y solo aquí: la fecha, la hora y el
+ * lugar los pone el texto de la tarjeta. El flyer completo se vería en
+ * /agenda/[slug], que TODAVÍA NO EXISTE — hasta que exista, este argumento
+ * está a medias.
+ *
+ * `alt=""`: el flyer es la versión gráfica del título y los datos que ya están
+ * en la tarjeta. Describirlo obligaría a un lector de pantalla a oír el mismo
+ * evento dos veces.
  */
+import { Image } from 'astro:assets';
 import ImagePlaceholder from '@/components/blocks/ImagePlaceholder.astro';
 import Icon from '@/components/ui/Icon.astro';
-import { formatFecha, formatHora } from '@/lib/format';
+import { formatRangoFechas, formatHora } from '@/lib/format';
 import type { Celebracion } from '@/lib/types';
 
 interface Props {
@@ -18,13 +53,28 @@ interface Props {
 }
 
 const { celebracion } = Astro.props;
-const { slug, titulo, fecha_inicio, hora, lugar } = celebracion;
+const { slug, titulo, imagen, fecha_inicio, fecha_fin, hora, lugar } = celebracion;
 ---
 
 <article
-  class="group relative flex flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow hover:shadow-lift"
+  class="group relative flex flex-1 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow hover:shadow-lift"
 >
-  <ImagePlaceholder ratio="3/2" label={titulo} rounded="none" />
+  {
+    imagen ? (
+      <Image
+        src={imagen}
+        alt=""
+        widths={[300, 600]}
+        sizes="(min-width: 1024px) 285px, (min-width: 640px) 50vw, 100vw"
+        class="aspect-square w-full object-cover object-top"
+      />
+    ) : (
+      /* La MISMA proporción que la foto, siempre. ImagePlaceholder existe para
+         reservar la caja definitiva: si las dos se separan, las tarjetas de la
+         fila dejan de medir igual. */
+      <ImagePlaceholder ratio="1/1" label={titulo} rounded="none" />
+    )
+  }
 
   <div class="flex flex-1 flex-col gap-2 p-5">
     <h3 class="font-display text-h3 font-bold">
@@ -36,7 +86,7 @@ const { slug, titulo, fecha_inicio, hora, lugar } = celebracion;
       </a>
     </h3>
 
-    <p class="text-small text-ink-soft">{formatFecha(fecha_inicio)}</p>
+    <p class="text-small text-ink-soft">{formatRangoFechas(fecha_inicio, fecha_fin)}</p>
 
     <ul class="mt-auto flex flex-col gap-1 pt-2 text-small text-muted" role="list">
       {

@@ -34,6 +34,18 @@ export interface Celebracion {
   resumen: string;
   contenido: string;
   imagen_url: string | null;
+  /**
+   * PROVISIONAL — no es una columna de Supabase.
+   *
+   * Mientras los flyers vivan en `src/assets/eventos/` y no en Storage, esta es
+   * la vía para que Astro los procese (`<Image>` necesita el import, no una
+   * ruta suelta). Cuando la parroquia suba los flyers a Supabase, esto se borra
+   * y manda `imagen_url`.
+   *
+   * Los flyers parroquiales son verticales y llevan el texto dentro; cómo se
+   * recortan está explicado en EventCard.
+   */
+  imagen?: ImageMetadata;
   /** ISO 8601, p. ej. "2026-05-12" */
   fecha_inicio: string;
   fecha_fin: string | null;

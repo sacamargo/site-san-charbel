@@ -1,11 +1,11 @@
 // @ts-check
 import { defineConfig, fontProviders } from 'astro/config';
-import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   output: 'server',
-  adapter: node({ mode: 'standalone' }),
+  adapter: vercel(),
 
   vite: {
     plugins: [tailwindcss()],

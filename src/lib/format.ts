@@ -36,6 +36,36 @@ export function formatFecha(fecha: string | Date): string {
   }).format(d);
 }
 
+/**
+ * Rango de fechas de una celebración: "3 al 5 de julio de 2027".
+ *
+ * Los retiros duran varios días y mostrar solo `fecha_inicio` los anuncia como
+ * si fueran de una tarde. Se colapsa lo que se repite —mes y año si caen
+ * iguales, solo el año si cambia el mes— porque "3 de julio de 2027 al 5 de
+ * julio de 2027" es correcto y a la vez ilegible.
+ *
+ * Sin `fin`, o si `fin` no es posterior a `inicio`, devuelve la fecha suelta.
+ */
+export function formatRangoFechas(inicio: string, fin?: string | null): string {
+  if (!fin || fin <= inicio) return formatFecha(inicio);
+
+  const a = parseFechaISO(inicio);
+  const b = parseFechaISO(fin);
+  const mismoAnio = a.getFullYear() === b.getFullYear();
+  const mismoMes = mismoAnio && a.getMonth() === b.getMonth();
+
+  const dia = (d: Date) =>
+    new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, day: 'numeric' }).format(d);
+  const diaMes = (d: Date) =>
+    new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, day: 'numeric', month: 'long' }).format(
+      d,
+    );
+
+  if (mismoMes) return `${dia(a)} al ${diaMes(b)} de ${b.getFullYear()}`;
+  if (mismoAnio) return `${diaMes(a)} al ${diaMes(b)} de ${b.getFullYear()}`;
+  return `${formatFecha(a)} al ${formatFecha(b)}`;
+}
+
 /** "2026-07-03" → { dia: "3", mes: "JUL" } para DateBadge (§6.7) */
 export function formatFechaCorta(fecha: string | Date): { dia: string; mes: string } {
   const d = typeof fecha === 'string' ? parseFechaISO(fecha) : fecha;
