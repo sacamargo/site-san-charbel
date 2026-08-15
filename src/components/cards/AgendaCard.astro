@@ -1,0 +1,104 @@
+---
+/**
+ * AgendaCard — tarjeta de un evento de la agenda (Google Calendar).
+ *
+ * OJO, CONVIVE CON `EventCard.astro`: aquella recibe una `Celebracion` (fila de
+ * Supabase) y enlaza a `/agenda/{slug}`; esta recibe un `ParishEvent` leído de
+ * Google Calendar, que es la fuente acordada en el contrato 1. Se dejan las dos
+ * a propósito, sin tocar la de Daniel, hasta que el equipo decida cuál queda.
+ * El documento de diseño §6.6 llama `AgendaCard` a esta tarjeta.
+ */
+import DateBadge from '@/components/ui/DateBadge.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { claveDia, formatCuando, formatFranja } from '@/lib/agenda/format';
+import { eventAnchorId } from '@/lib/agenda/ids';
+import type { ParishEvent } from '@/lib/types';
+
+interface Props {
+  event: ParishEvent;
+  /** El nivel lo decide la página, no el componente. */
+  headingLevel?: 'h3' | 'h4';
+  class?: string;
+}
+
+const { event, headingLevel: Heading = 'h3', class: className } = Astro.props;
+const anchorId = eventAnchorId(event.id);
+
+// Cuando el evento cruza días o dura todo el día, la insignia con el día de
+// inicio no basta: hace falta la frase completa.
+const cruzaDias = claveDia(event.start) !== claveDia(event.end);
+const cuando = event.allDay || cruzaDias ? formatCuando(event) : formatFranja(event);
+---
+
+<article
+  id={anchorId}
+  class:list={[
+    'scroll-mt-24 overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow hover:shadow-lift',
+    className,
+  ]}
+>
+  {
+    event.flyerUrl && (
+      <div class="aspect-3/2 w-full overflow-hidden border-b border-line bg-surface-alt">
+        <img
+          src={event.flyerUrl}
+          alt={`Pieza gráfica del evento: ${event.title}`}
+          width="600"
+          height="400"
+          loading="lazy"
+          decoding="async"
+          referrerpolicy="no-referrer"
+          class="size-full object-cover"
+        />
+      </div>
+    )
+  }
+
+  <div class="p-5">
+    <div class="flex items-start gap-4">
+      <DateBadge date={event.start} allDay={event.allDay} />
+
+      <div class="min-w-0 flex-1">
+        <Heading class="font-display text-h3 font-bold text-ink">{event.title}</Heading>
+        <p class="mt-2 flex items-center gap-2 text-small font-semibold text-gold-600">
+          <Icon name="clock" size={15} />
+          <span>{cuando}</span>
+        </p>
+      </div>
+    </div>
+
+    {
+      event.location && (
+        <p class="mt-4 flex items-start gap-2 text-small text-ink-soft">
+          <Icon name="map-pin" size={15} class="mt-1 text-gold-600" />
+          <span>{event.location}</span>
+        </p>
+      )
+    }
+
+    {
+      event.description && (
+        <p class="mt-3 line-clamp-4 max-w-[65ch] text-small whitespace-pre-line text-ink-soft">
+          {event.description}
+        </p>
+      )
+    }
+
+    {
+      event.sourceUrl && (
+        <p class="mt-5 border-t border-line pt-4">
+          <a
+            href={event.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex min-h-11 items-center gap-2 text-small font-bold text-gold-600 hover:text-olive-700"
+          >
+            <span>Ver en Google Calendar</span>
+            <Icon name="external-link" size={15} />
+            <span class="sr-only">(se abre en una pestaña nueva)</span>
+          </a>
+        </p>
+      )
+    }
+  </div>
+</article>

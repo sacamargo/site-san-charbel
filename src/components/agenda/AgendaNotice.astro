@@ -1,0 +1,56 @@
+---
+/**
+ * Aviso sobre el estado de la agenda.
+ *
+ * §10: el color nunca es el único portador de información, así que cada aviso
+ * lleva icono y un texto que dice exactamente qué pasa. Y ninguno oculta el
+ * contenido: si hay eventos viejos en caché, se muestran igual, avisando de que
+ * son viejos.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { formatAntiguedad } from '@/lib/agenda/format';
+import type { AgendaStatus } from '@/lib/types';
+
+interface Props {
+  status: AgendaStatus;
+  fetchedAt: Date | null;
+}
+
+const { status, fetchedAt } = Astro.props;
+
+const mensajes: Record<Exclude<AgendaStatus, 'ok'>, { titulo: string; cuerpo: string }> = {
+  stale: {
+    titulo: 'Puede que esta información no esté al día',
+    cuerpo: fetchedAt
+      ? `No pudimos consultar el calendario en este momento, así que estás viendo la última copia que guardamos (${formatAntiguedad(fetchedAt)}). Vuelve a intentarlo en unos minutos.`
+      : 'No pudimos consultar el calendario en este momento. Vuelve a intentarlo en unos minutos.',
+  },
+  unavailable: {
+    titulo: 'La agenda no está disponible ahora mismo',
+    cuerpo:
+      'No pudimos conectarnos con el calendario de la parroquia. Es un problema temporal de nuestro lado; vuelve a intentarlo en unos minutos.',
+  },
+  'not-configured': {
+    titulo: 'La agenda todavía no está conectada',
+    cuerpo:
+      'Falta enlazar el calendario de la parroquia. Si eres del equipo del sitio, revisa GOOGLE_CALENDAR_ID y GOOGLE_CALENDAR_API_KEY.',
+  },
+};
+
+const mensaje = status === 'ok' ? null : mensajes[status];
+---
+
+{
+  mensaje && (
+    <div
+      role="status"
+      class="flex gap-4 rounded-card border border-l-4 border-sand border-l-gold-600 bg-sand-soft px-5 py-4"
+    >
+      <Icon name="triangle-alert" size={22} class="mt-0.5 text-gold-600" />
+      <div>
+        <p class="text-body font-bold text-ink">{mensaje.titulo}</p>
+        <p class="mt-1 max-w-[65ch] text-small text-ink-soft">{mensaje.cuerpo}</p>
+      </div>
+    </div>
+  )
+}
