@@ -1,0 +1,23 @@
+---
+/**
+ * SectionTitle — título de sección con la regla dorada corta debajo.
+ *
+ * Se repite en las seis secciones de la portada, siempre alineado a la
+ * izquierda. La regla es ornamento puro (gold-500), así que no tiene requisito
+ * de contraste.
+ */
+interface Props {
+  as?: 'h2' | 'h3';
+  id?: string;
+  class?: string;
+}
+
+const { as: Tag = 'h2', id, class: className } = Astro.props;
+---
+
+<div class:list={['mb-8', className]}>
+  <Tag id={id} class="font-display text-h2 font-bold text-ink">
+    <slot />
+  </Tag>
+  <span class="mt-3 block h-0.5 w-14 rounded-pill bg-gold-500" aria-hidden="true"></span>
+</div>

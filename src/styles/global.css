@@ -1,0 +1,159 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   SISTEMA DE DISEÑO — Parroquia San Chárbel
+   Fuente de verdad de todo valor visual. Ver docs/DESIGN.md para el porqué.
+
+   Los valores salen del mockup (docs/mockups/inicio.png), medidos sobre la
+   imagen y después ajustados para que cada pareja de texto pase AA (§ contraste
+   en DESIGN.md). No inventes un color aquí: si el diseño necesita uno nuevo,
+   se añade a este bloque y se comprueba su contraste antes de usarlo.
+   ========================================================================= */
+
+@theme {
+  /* --- Color -------------------------------------------------------------
+     La marca es OLIVA + ARENA sobre MARFIL. El dorado es acento, nunca
+     superficie ni estructura. */
+
+  /* Lienzo */
+  --color-ivory: #faf7f2; /* fondo de página */
+  --color-surface: #ffffff; /* tarjetas */
+  --color-surface-alt: #f8f5ee; /* tarjetas secundarias, franjas suaves */
+
+  /* Oliva — color estructural: pie, botones, tinta */
+  --color-olive-900: #2f2e1b; /* pie de página */
+  --color-olive-800: #35341f;
+  --color-olive-700: #4b4e1f; /* botón primario */
+  --color-olive-600: #5c5f2a; /* hover del botón primario */
+
+  /* Arena — bandas destacadas */
+  --color-sand: #d8c7a8;
+  --color-sand-soft: #e9dcc4;
+
+  /* Dorado — acento. Ojo con cuál usas:
+       gold-600  texto e iconos que SIGNIFICAN algo (6.68:1 sobre marfil)
+       gold-500  ORNAMENTO solamente (2.54:1 — no llega ni a 3:1)
+     Un separador decorativo puede ser gold-500 porque no comunica nada;
+     un enlace o un icono informativo, jamás.
+
+     gold-600 se oscureció de #8a6a35 a #6f5326: el original pasaba sobre
+     marfil plano (4.69:1) pero se quedaba en 3.68:1 encima de la foto del
+     hero, y el eyebrow va a 12px. Sobre fondo plano el tono nuevo solo mejora. */
+  --color-gold-600: #6f5326;
+  --color-gold-500: #b89868;
+  --color-gold-300: #dec6a0;
+  --color-gold-100: #f2e7d5;
+
+  /* Texto */
+  --color-ink: #2b2a1c; /* títulos */
+  /* OJO: no llamarlo --color-body. Existe --text-body (tamaño de fuente) y
+     Tailwind generaría dos utilidades `text-body` distintas, una de color y
+     otra de tamaño, con resolución ambigua. */
+  --color-ink-soft: #4f4d3f; /* cuerpo */
+  --color-muted: #6f6c5c; /* metadatos — solo a 14px o más */
+  --color-on-dark: #faf7f2; /* sobre oliva */
+  --color-on-dark-muted: #c9c7b8;
+
+  /* Bordes y estados */
+  --color-line: #e7e1d5;
+  --color-error: #a33a2f;
+  --color-success: #4b4e1f;
+
+  /* --- Tipografía --------------------------------------------------------
+     Astro genera --font-playfair y --font-nunito (ver astro.config.mjs) con
+     sus fallbacks ajustados por métricas. Aquí solo se les pone nombre de
+     dominio para que Tailwind emita las utilidades font-display / font-body. */
+  --font-display: var(--font-playfair);
+  --font-body: var(--font-nunito);
+
+  /* Escala fluida, interpolando entre 360px y 1280px de viewport.
+     Cada valor lleva un término en rem (nunca vw puro) para que el texto siga
+     escalando con el zoom del navegador — WCAG 1.4.4. */
+  --text-display: clamp(2.5rem, 2.109rem + 1.7391vw, 3.5rem); /* 40 → 56 */
+  --text-display--line-height: 1.12;
+  --text-h2: clamp(1.75rem, 1.603rem + 0.6522vw, 2.125rem); /* 28 → 34 */
+  --text-h2--line-height: 1.2;
+  --text-h3: clamp(1.125rem, 1.076rem + 0.2174vw, 1.25rem); /* 18 → 20 */
+  --text-h3--line-height: 1.35;
+  --text-body: 1rem;
+  --text-body--line-height: 1.7;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.6;
+  --text-overline: 0.75rem;
+  --text-overline--line-height: 1.4;
+
+  /* --- Formas ------------------------------------------------------------ */
+  --radius-card: 0.75rem;
+  --radius-band: 1rem;
+  --radius-pill: 999px;
+
+  /* Sombras muy suaves: en el diseño las tarjetas se separan por borde, no
+     por sombra. */
+  --shadow-card: 0 1px 2px rgb(47 46 27 / 0.05);
+  --shadow-lift: 0 8px 24px rgb(47 46 27 / 0.08);
+
+  /* --- Layout ------------------------------------------------------------ */
+  --container-page: 1200px;
+}
+
+/* ============================================================================
+   BASE — lo mínimo que no puede vivir como utilidad
+   ========================================================================= */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Que las anclas no queden debajo del encabezado fijo. */
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-ink-soft);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Foco visible en todo elemento interactivo. Nunca `outline: none` sin
+     reemplazo: parte de la comunidad navega con teclado. */
+  :focus-visible {
+    outline: 2px solid var(--color-olive-700);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-gold-100);
+    color: var(--color-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

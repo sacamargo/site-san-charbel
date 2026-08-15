@@ -1,0 +1,49 @@
+---
+/**
+ * Icon — Sistema de diseño §5.1
+ *
+ * Trazo de 1.5px, extremos redondeados, caja 24×24. El color se hereda con
+ * `currentColor`: el contenedor decide (dorado por defecto, --text-on-dark
+ * sobre fondo oscuro), el icono nunca lo fija.
+ *
+ * Accesibilidad (§5.1, §10): decorativo por defecto (aria-hidden). Si el icono
+ * es el único contenido de un botón o enlace, pásale `label`.
+ */
+import { icons, type IconName } from './icons';
+
+interface Props {
+  name: IconName;
+  /** Lado de la caja en px. 24 por defecto; 14–18 para metadatos. */
+  size?: number;
+  /** Texto accesible. Sin él, el icono se marca como decorativo. */
+  label?: string;
+  class?: string;
+}
+
+const { name, size = 24, label, class: className } = Astro.props;
+
+const path = icons[name];
+if (!path) throw new Error(`Icon: no existe el icono "${name}" en icons.ts`);
+---
+
+<svg
+  class={className}
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden={label ? undefined : 'true'}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  set:html={path}
+/>
+
+<style>
+  svg {
+    flex-shrink: 0;
+  }
+</style>

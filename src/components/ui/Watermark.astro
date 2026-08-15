@@ -1,0 +1,70 @@
+---
+/**
+ * Watermark — rama de olivo decorativa.
+ *
+ * Guiño al Líbano de San Chárbel. Va siempre a opacidad muy baja: a ese nivel
+ * se lee como textura, no como color, que es la única forma en que el verde
+ * entra en esta paleta sin competir con el oliva estructural.
+ *
+ * CONTRATO DEL DIBUJO — si alguien lo reemplaza, esto es lo que no puede
+ * romper:
+ *   · viewBox 0 0 100 500 (vertical, 1:5), sin width ni height.
+ *   · Todo el color con `currentColor`. Ni un hex: el tono lo pone la clase
+ *     `text-*` de quien lo usa y la transparencia la clase `opacity-*`.
+ *   · Sin opacity propio, sin <style>, sin id ni class internos.
+ *
+ * El tallo se sale del viewBox por arriba y por abajo, y algunas hojas se
+ * salen por los lados: la rama está pensada para verse cortada por el borde.
+ *
+ * Ojo con el tamaño: la proporción es 1:5, así que `w-32` da 640px de alto.
+ * Se dimensiona por el ancho desde quien la usa.
+ *
+ * Se dibuja vertical. Para otras orientaciones, rota desde quien la usa
+ * (la banda de San Chárbel la gira 125°).
+ *
+ * Siempre `aria-hidden` y nunca debajo de texto: se ancla a un borde y el
+ * contenido va por encima.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<svg
+  class:list={['pointer-events-none absolute', className]}
+  viewBox="0 0 100 500"
+  fill="currentColor"
+  preserveAspectRatio="xMidYMid meet"
+  aria-hidden="true"
+>
+  <path d="M44 505 C38 472 49 443 43 414 C37 382 48 354 45 322 C42 291 53 264 47 232 C42 202 51 171 47 140 C44 108 56 78 51 48 C49 27 55 8 58 -5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+  <path d="M44 471 C34 462 24 451 21 439 C32 442 41 452 44 471Z"></path><path d="M44 471 C53 462 62 451 65 439 C54 443 46 453 44 471Z"></path>
+  <path d="M42 438 C31 432 20 421 17 409 C29 412 39 423 42 438Z"></path>
+  <path d="M43 402 C54 394 66 383 70 370 C58 375 47 387 43 402Z"></path><path d="M42 365 C31 358 22 348 18 337 C29 340 39 351 42 365Z"></path>
+  <path d="M44 333 C54 325 65 315 67 302 C56 308 47 320 44 333Z"></path>
+  <path d="M46 292 C34 285 24 273 20 260 C32 264 43 276 46 292Z"></path><path d="M47 292 C57 283 68 271 72 258 C60 264 51 276 47 292Z"></path>
+  <path d="M48 250 C37 244 29 234 27 223 C38 226 46 237 48 250Z"></path><path d="M48 218 C60 210 70 198 73 185 C61 191 52 204 48 218Z"></path>
+  <path d="M47 176 C34 170 24 158 22 145 C35 149 44 161 47 176Z"></path><path d="M48 176 C58 169 67 158 69 147 C59 151 51 162 48 176Z"></path>
+  <path d="M48 132 C37 127 29 117 27 105 C38 109 46 120 48 132Z"></path><path d="M50 99 C61 92 70 82 72 70 C61 75 53 87 50 99Z"></path>
+  <path d="M51 70 C42 65 35 56 34 47 C43 50 50 59 51 70Z"></path><path d="M52 43 C59 37 65 28 66 19 C58 23 53 32 52 43Z"></path>
+  <path d="M42 414 C55 397 66 374 78 351 C84 340 88 326 91 310" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+  <path d="M52 398 C61 398 71 393 76 385 C66 386 58 391 52 398Z"></path><path d="M59 385 C57 375 59 365 64 357 C67 367 65 377 59 385Z"></path>
+  <path d="M65 371 C75 369 84 363 88 355 C78 357 69 362 65 371Z"></path><path d="M69 358 C68 348 72 338 78 331 C78 342 75 351 69 358Z"></path>
+  <path d="M78 344 C86 341 93 335 97 327 C88 330 81 336 78 344Z"></path><path d="M81 331 C80 322 84 314 89 307 C90 317 87 326 81 331Z"></path>
+  <path d="M88 319 C94 316 99 311 102 304 C95 307 90 312 88 319Z"></path>
+  <path d="M46 322 C34 307 25 291 18 272 C13 259 10 247 8 235" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+  <path d="M34 305 C25 302 17 296 13 288 C22 290 30 296 34 305Z"></path><path d="M28 293 C30 284 29 276 25 269 C21 278 23 287 28 293Z"></path>
+  <path d="M24 276 C16 273 9 267 5 260 C14 261 21 267 24 276Z"></path><path d="M20 262 C21 253 18 245 13 239 C11 248 14 257 20 262Z"></path>
+  <path d="M15 247 C9 244 3 238 0 232 C7 234 13 239 15 247Z"></path><path d="M12 235 C14 227 13 219 9 213 C6 221 8 229 12 235Z"></path>
+  <path d="M45 232 C58 224 69 212 79 198 C85 189 88 180 91 168" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
+  <path d="M55 224 C64 224 73 220 78 214 C68 214 60 218 55 224Z"></path><path d="M61 215 C60 207 63 199 68 193 C69 202 66 210 61 215Z"></path>
+  <path d="M70 207 C78 204 85 198 88 191 C80 193 73 198 70 207Z"></path><path d="M75 198 C74 190 78 183 83 178 C83 187 80 193 75 198Z"></path>
+  <path d="M83 184 C90 182 96 177 99 171 C92 173 86 178 83 184Z"></path>
+  <path d="M47 140 C35 131 25 116 17 99 C10 84 6 70 3 53" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+  <path d="M35 127 C26 126 18 121 13 114 C22 115 30 120 35 127Z"></path><path d="M29 116 C30 106 28 98 23 91 C20 101 23 110 29 116Z"></path>
+  <path d="M22 103 C14 99 8 93 5 85 C13 87 20 94 22 103Z"></path><path d="M17 91 C18 81 15 72 10 65 C8 76 11 85 17 91Z"></path>
+  <path d="M12 76 C5 72 0 66 -2 59 C5 61 10 67 12 76Z"></path><path d="M9 63 C10 54 8 46 4 40 C1 49 4 58 9 63Z"></path>
+  <path d="M5 48 C1 45 -2 40 -3 35 C2 37 5 42 5 48Z"></path>
+</svg>
