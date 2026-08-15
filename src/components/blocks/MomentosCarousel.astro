@@ -1,0 +1,239 @@
+---
+/**
+ * MomentosCarousel — las fotos de la parroquia, en una tira que se desplaza.
+ *
+ * POR QUÉ NO ES EL MOSAICO DEL MOCKUP. El mockup dibuja un mosaico de seis
+ * huecos fijos y la parroquia tiene muchas fotos, y seguirán llegando. Un
+ * mosaico no crece: o sobran huecos o sobran fotos. La desviación es a
+ * conciencia y está anotada en `docs/DESIGN.md`.
+ *
+ * TODAS LA MISMA ALTURA, EL ANCHO QUE PIDA CADA UNA. Es la decisión que
+ * sostiene el componente: como el ancho sale de la proporción de la foto, no
+ * se recorta ninguna. En una ranura fija pasaba lo contrario — una foto
+ * vertical perdía el 44% del alto y cada foto nueva obligaba a buscarle a mano
+ * un anclaje de recorte. Aquí ese problema no existe.
+ *
+ * SIN LIBRERÍA Y SIN AUTOAVANCE. El desplazamiento es scroll nativo con
+ * `scroll-snap`: el navegador ya sabe hacerlo con dedo, trackpad, teclado y
+ * lector de pantalla. Y nada se mueve solo — §5 de `docs/DESIGN.md` recuerda
+ * que parte de la comunidad es adulta mayor, y un carrusel que avanza a
+ * destiempo es justo lo que peor le sienta.
+ *
+ * CAPAS. Sin JavaScript la tira se desplaza igual y las fotos se ven; las
+ * flechas y el visor son mejora progresiva y solo aparecen si el script corre.
+ */
+import { Image } from 'astro:assets';
+import Carousel from '@/components/blocks/Carousel.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { momentos } from '@/data/momentos';
+
+/**
+ * Altura de la tira en cada tramo. Están aquí y no sueltas en las clases
+ * porque el `sizes` de cada foto se calcula con ellas: si cambian ahí y no
+ * aquí, el navegador se descarga imágenes del tamaño equivocado sin que se
+ * note en pantalla.
+ */
+const ALTO_MOVIL = 220;
+const ALTO_ESCRITORIO = 300;
+
+/**
+ * Como la altura es conocida, el ancho en pantalla también: sale de la
+ * proporción de cada foto. Y sabiendo el ancho se puede pedir exactamente ese
+ * tamaño en vez de dejar que Astro sirva medidas al bulto — en el mosaico
+ * anterior una ranura de 570px recibía una imagen de 900.
+ */
+const fotos = momentos.map((momento) => {
+  const proporcion = momento.imagen.width / momento.imagen.height;
+  const anchoEscritorio = Math.round(ALTO_ESCRITORIO * proporcion);
+  // El doble cubre las pantallas 2×; se descarta lo que supere el original,
+  // porque pedir más píxeles de los que hay no los inventa.
+  const anchos = [anchoEscritorio, anchoEscritorio * 2].filter(
+    (ancho) => momento.imagen.width >= ancho,
+  );
+
+  return {
+    ...momento,
+    anchos: anchos.length ? anchos : [momento.imagen.width],
+    sizes: `(min-width: 768px) ${anchoEscritorio}px, ${Math.round(ALTO_MOVIL * proporcion)}px`,
+  };
+});
+---
+
+<Carousel
+  id="momentos-tira"
+  label="Fotos de la parroquia. Desplázate para ver más."
+  etiquetaAnterior="Ver fotos anteriores"
+  etiquetaSiguiente="Ver más fotos"
+>
+  {
+    fotos.map((foto, i) => (
+        <li class="h-[220px] shrink-0 snap-start md:h-[300px]">
+          <button
+            type="button"
+            data-foto={i}
+            class="block h-full cursor-pointer rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700"
+          >
+            {/*
+              `max-w-none` es imprescindible. El reset de Tailwind pone
+              `max-width: 100%` a toda imagen y, con el ancho libre, aplasta
+              las apaisadas: dejarían de medir todas lo mismo de alto y
+              volverían los desajustes que este componente viene a quitar.
+            */}
+            <Image
+              src={foto.imagen}
+              alt={foto.alt}
+              widths={foto.anchos}
+              sizes={foto.sizes}
+              loading={i < 2 ? 'eager' : 'lazy'}
+              decoding="async"
+              class="h-full w-auto max-w-none rounded-card object-cover"
+            />
+          </button>
+        </li>
+      ))
+  }
+</Carousel>
+
+{/*
+  Visor. Un solo <dialog> que se reutiliza, no uno por foto: con muchas fotos,
+  repetir el diálogo llenaría el HTML de copias que casi nunca se abren.
+
+  Se abre con showModal(), que es lo que hace que valga la pena: el foco
+  atrapado, el cierre con Esc, el bloqueo del scroll de fondo y la devolución
+  del foco al botón que lo abrió los pone el navegador. Mismo criterio que el
+  menú móvil en Header.astro.
+
+  CENTRADO: ocupa la pantalla entera y centra con `grid`, en vez de fiarse del
+  `margin: auto` con el que un <dialog> se centra solo. Ese margen no sobrevive
+  aquí — el preflight de Tailwind pone `margin: 0` a todo elemento y lo pisa,
+  así que el visor se iba a la esquina superior izquierda. Con
+  `fixed inset-0 size-full` el diálogo ES la pantalla y el centrado lo hace la
+  rejilla, que no depende de márgenes.
+
+  De paso, ocupar toda la pantalla hace fiable el cierre al pulsar fuera: ese
+  "fuera" es ahora el propio diálogo.
+*/}
+<dialog
+  id="momentos-visor"
+  aria-label="Foto ampliada"
+  class="fixed inset-0 size-full max-h-none max-w-none bg-transparent p-0 backdrop:bg-olive-900/80 open:grid open:place-items-center"
+>
+  <div class="grid place-items-center p-4">
+    {/* El src lo pone el script; nace vacía a propósito. */}
+    <img
+      data-visor-img
+      alt=""
+      class="max-h-[85vh] max-w-[92vw] rounded-card object-contain"
+    />
+
+    <p data-visor-pie class="mt-3 max-w-prose text-center text-small text-on-dark"></p>
+  </div>
+
+  {/*
+    LOS BOTONES CUELGAN DEL <dialog>, NO DEL BLOQUE DE LA FOTO. Es todo el
+    motivo de que estén aquí fuera: el bloque mide lo que mida la imagen, y
+    cada foto tiene su tamaño, así que anclados a él las flechas saltaban de
+    sitio en cada salto. Colgando del diálogo —que es la pantalla entera— caen
+    siempre en el mismo punto y se puede pulsar repetido sin perseguirlas.
+
+    Son hijos de una rejilla, pero al ir en `absolute` salen del flujo y
+    `place-items-center` no les afecta: manda el `inset` de cada uno.
+  */}
+  <button
+    type="button"
+    data-visor-cerrar
+    aria-label="Cerrar"
+    class="absolute top-4 right-4 grid size-11 place-items-center rounded-pill bg-olive-900/70 text-on-dark transition-colors hover:bg-olive-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-dark md:top-6 md:right-6"
+  >
+    <Icon name="x" size={22} />
+  </button>
+
+  <button
+    type="button"
+    data-visor-anterior
+    aria-label="Foto anterior"
+    class="absolute top-1/2 left-2 grid size-11 -translate-y-1/2 place-items-center rounded-pill bg-olive-900/70 text-on-dark transition-colors hover:bg-olive-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-dark md:left-6"
+  >
+    <Icon name="chevron-left" size={22} />
+  </button>
+
+  <button
+    type="button"
+    data-visor-siguiente
+    aria-label="Foto siguiente"
+    class="absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-pill bg-olive-900/70 text-on-dark transition-colors hover:bg-olive-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-dark md:right-6"
+  >
+    <Icon name="chevron-right" size={22} />
+  </button>
+</dialog>
+
+<script>
+  const tira = document.getElementById('momentos-tira');
+  const visor = document.getElementById('momentos-visor') as HTMLDialogElement | null;
+
+  if (tira) {
+    const botones = [...tira.querySelectorAll<HTMLButtonElement>('button[data-foto]')];
+
+    /* Las flechas y el desplazamiento los cablea Carousel.astro. Aquí solo
+       queda el visor, que es lo propio de las fotos. */
+
+    if (visor) {
+      const img = visor.querySelector<HTMLImageElement>('[data-visor-img]')!;
+      const pie = visor.querySelector<HTMLParagraphElement>('[data-visor-pie]')!;
+      let actual = 0;
+
+      // La miniatura ya trae el srcset; se le pide el original completo.
+      const mostrar = (i: number) => {
+        actual = (i + botones.length) % botones.length;
+        const miniatura = botones[actual]?.querySelector('img');
+        if (!miniatura) return;
+        // `src` (no `currentSrc`) es el archivo entero, sin recortar ni reducir.
+        img.src = miniatura.src;
+        img.alt = miniatura.alt;
+        pie.textContent = miniatura.alt;
+      };
+
+      botones.forEach((boton, i) =>
+        boton.addEventListener('click', () => {
+          mostrar(i);
+          visor.showModal();
+        }),
+      );
+
+      visor
+        .querySelector('[data-visor-cerrar]')
+        ?.addEventListener('click', () => visor.close());
+      visor
+        .querySelector('[data-visor-anterior]')
+        ?.addEventListener('click', () => mostrar(actual - 1));
+      visor
+        .querySelector('[data-visor-siguiente]')
+        ?.addEventListener('click', () => mostrar(actual + 1));
+
+      // Clic en el fondo. El <dialog> ocupa toda la pantalla, así que el
+      // backdrop es el propio elemento: si el target es él, el clic fue fuera.
+      visor.addEventListener('click', (evento) => {
+        if (evento.target === visor) visor.close();
+      });
+
+      // Con muchas fotos, cerrar y reabrir para ver la siguiente es hostil.
+      visor.addEventListener('keydown', (evento) => {
+        if (evento.key === 'ArrowRight') mostrar(actual + 1);
+        if (evento.key === 'ArrowLeft') mostrar(actual - 1);
+      });
+
+      /*
+        Al cerrar NO se toca el foco: lo devuelve el navegador a la miniatura
+        que abrió el visor, y así se queda.
+
+        Hubo aquí un intento de dejarlo en la foto a la que se hubiera llegado
+        con las flechas. Suena mejor, pero pelea con la restauración del propio
+        navegador y el resultado salía distinto en cada repetición de la misma
+        prueba. Un foco que a veces acaba en un sitio y a veces en otro es peor
+        que uno predecible, aunque el predecible sea el de partida. Si algún día
+        se reintenta, que sea con una prueba repetida: a la primera parece que
+        funciona.
+      */
+    }
+  }
+</script>

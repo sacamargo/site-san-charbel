@@ -6,41 +6,50 @@
  *
  *   1. Cabecera            Header
  *   2. Portada             Hero (claro)
- *   3. Próximos eventos    EventCard × 3 + estado vacío
- *   4. Momentos            mosaico de fotos
+ *   3. Próximos eventos    carrusel de EventCard (+ estado vacío)
+ *   4. Momentos            carrusel de fotos
  *   5. Horarios de misas   3 tarjetas + foto
  *   6. San Chárbel         banda arena
  *   7. Servicios           6 tarjetas
  *   8. Ubicación           mapa + contacto + foto
  *   9. Pie                 Footer
  */
+import { Image } from 'astro:assets';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Hero from '@/components/blocks/Hero.astro';
-import ImagePlaceholder from '@/components/blocks/ImagePlaceholder.astro';
+import MomentosCarousel from '@/components/blocks/MomentosCarousel.astro';
+import Carousel from '@/components/blocks/Carousel.astro';
 import EventCard from '@/components/cards/EventCard.astro';
 import SectionTitle from '@/components/ui/SectionTitle.astro';
 import Button from '@/components/ui/Button.astro';
 import Icon from '@/components/ui/Icon.astro';
 import Watermark from '@/components/ui/Watermark.astro';
-import { getProximasCelebraciones } from '@/lib/queries/celebraciones';
+import { getProximasCelebraciones, contarCelebraciones } from '@/lib/queries/celebraciones';
 import { getMisas } from '@/lib/queries/horarios';
 import { formatHoras } from '@/lib/format';
 import { servicios } from '@/data/servicios';
 import { parroquia } from '@/data/parroquia';
+import interiorTemplo from '@/assets/interior-templo.webp';
+import sanCharbel from '@/assets/san-charbel.webp';
+import fachadaTemplo from '@/assets/fachada-templo.jpg';
 
-const eventos = await getProximasCelebraciones(3);
+/**
+ * Cuántos eventos entran en el carrusel de la portada. El resto vive en la
+ * agenda completa.
+ *
+ * El total manda sobre la tarjeta de "no hay más eventos": solo se enseña
+ * cuando hay MENOS eventos que este tope, es decir, cuando el carrusel ya los
+ * está mostrando todos. Así esa frase es verdad por construcción y no por
+ * casualidad — antes se pintaba siempre, con el tope en 3, y habría mentido en
+ * cuanto entrara un cuarto evento.
+ */
+const EVENTOS_EN_PORTADA = 5;
+
+const eventos = await getProximasCelebraciones(EVENTOS_EN_PORTADA);
+const totalEventos = await contarCelebraciones();
+const mostrandoTodos = totalEventos < EVENTOS_EN_PORTADA;
 const misas = await getMisas();
 
-// El mosaico del diseño: una foto grande y seis pequeñas.
-const momentos = [
-  'Celebración de la Eucaristía',
-  'Comunidad reunida',
-  'Jornada parroquial',
-  'Catequesis',
-  'Grupo juvenil',
-  'Encuentro de familias',
-  'Oración comunitaria',
-];
 ---
 
 <BaseLayout
@@ -57,82 +66,209 @@ const momentos = [
   <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-eventos">
     <SectionTitle id="t-eventos">Próximos eventos</SectionTitle>
 
-    <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" role="list">
-      {eventos.map((evento) => <li class="flex"><EventCard celebracion={evento} /></li>)}
+    <Carousel
+      id="eventos-tira"
+      label="Próximos eventos. Desplázate para ver más."
+      etiquetaAnterior="Ver eventos anteriores"
+      etiquetaSiguiente="Ver más eventos"
+      class="gap-5"
+      paginacion
+    >
+      {
+        eventos.map((evento) => (
+          <li class="flex w-[272px] shrink-0 snap-start">
+            <EventCard celebracion={evento} />
+          </li>
+        ))
+      }
 
-      {/* Estado vacío: el diseño lo muestra explícitamente, no es relleno.
-          Cuando la agenda quede vacía, esta tarjeta ocupa toda la fila. */}
-      <li class="flex">
-        <div
-          class="flex flex-1 flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface-alt p-8 text-center"
-        >
-          <span class="grid size-12 place-items-center rounded-pill bg-gold-100 text-gold-600">
-            <Icon name="calendar-days" size={22} />
-          </span>
-          <p class="text-small text-muted">No hay más eventos programados por ahora.</p>
-          <Button variant="link" href="/agenda" iconEnd="arrow-right">
-            Consulta la agenda completa
-          </Button>
-        </div>
-      </li>
-    </ul>
+      {/*
+        La tarjeta de estado vacío, que el diseño muestra explícitamente.
+
+        SOLO SI EL CARRUSEL YA LOS ENSEÑA TODOS. Antes se pintaba sin ninguna
+        condición: con el tope en 3 colaba, pero con más eventos de los que
+        caben habría dicho que no quedan mientras escondía el resto. Atada al
+        total, la frase no puede ser falsa.
+      */}
+      {
+        mostrandoTodos && (
+          <li class="flex w-[272px] shrink-0 snap-start" data-eventos-vacio>
+            <div class="flex flex-1 flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface-alt p-8 text-center">
+              <span class="grid size-12 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                <Icon name="calendar-days" size={22} />
+              </span>
+              <p class="text-small text-muted">
+                {totalEventos === 0
+                  ? 'No hay eventos programados por ahora.'
+                  : 'No hay más eventos programados por ahora.'}
+              </p>
+              <Button variant="link" href="/agenda" iconEnd="arrow-right">
+                Consulta la agenda completa
+              </Button>
+            </div>
+          </li>
+        )
+      }
+    </Carousel>
+
+    {/*
+      Enlace a la agenda. Nace visible —sin JavaScript es lo que hay— y el
+      script de abajo lo esconde mientras la tarjeta de arriba esté a la vista,
+      porque esa tarjeta ya lleva el mismo enlace dentro y dos accesos a la
+      agenda en la misma pantalla sobran.
+    */}
+    <div data-eventos-enlace class="mt-6">
+      <Button variant="link" href="/agenda" iconEnd="arrow-right">
+        Consulta la agenda completa
+      </Button>
+    </div>
   </section>
+
+  <script>
+    /*
+      Un enlace u otro, nunca los dos a la vez.
+
+      Si la tarjeta existe pero queda fuera de pantalla —lo normal en móvil,
+      donde solo cabe una tarjeta— el enlace suelto sigue haciendo falta. Por
+      eso no basta con mirar si la tarjeta está en el HTML: hay que mirar si se
+      VE. De ahí el observador.
+
+      Si la tarjeta no existe (hay más eventos de los que caben), no hay nada
+      que observar y el enlace se queda puesto, que es lo correcto.
+    */
+    const tarjetaVacia = document.querySelector('[data-eventos-vacio]');
+    const enlaceAgenda = document.querySelector<HTMLElement>('[data-eventos-enlace]');
+
+    if (tarjetaVacia && enlaceAgenda) {
+      new IntersectionObserver(
+        ([entrada]) => {
+          if (entrada) enlaceAgenda.hidden = entrada.isIntersecting;
+        },
+        // La tira es el marco de referencia, no la ventana: la tarjeta puede
+        // estar dentro del viewport y aun así fuera del trozo visible de la
+        // tira. `threshold` alto para que solo cuente si se ve de verdad.
+        { root: tarjetaVacia.closest('[data-tira]'), threshold: 0.6 },
+      ).observe(tarjetaVacia);
+    }
+  </script>
 
   {/* 4 — Momentos de la parroquia */}
   <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-momentos">
     <SectionTitle id="t-momentos">Momentos de la parroquia</SectionTitle>
 
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {
-        momentos.map((label, i) => (
-          <ImagePlaceholder
-            label={label}
-            ratio={i === 0 ? '1/1' : '4/3'}
-            class:list={[i === 0 && 'col-span-2 row-span-2']}
-          />
-        ))
-      }
-    </div>
+    {/* Las fotos y su orden viven en src/data/momentos.ts. */}
+    <MomentosCarousel />
   </section>
 
   {/* 5 — Horarios de misas */}
   <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-labelledby="t-horarios">
     <SectionTitle id="t-horarios">Horarios de misas</SectionTitle>
 
-    <div class="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-start">
-      <div>
-        <ul class="grid gap-4 sm:grid-cols-3" role="list">
+    {/*
+      LISTA APILADA, NO TRES TARJETAS EN FILA. El mockup las pone en fila y
+      aquí no, a propósito: en fila son bajas —un título y una línea de horas—
+      y al lado de una foto vertical dejaban ~297px de hueco muerto debajo.
+      Apiladas, la columna crece hasta encontrarse con la foto, y de paso una
+      lista de días y horas se lee mejor, que es justo a lo que viene la gente.
+
+      Sin `lg:items-start`: la columna se estira hasta el alto de la fila y el
+      enlace se va al pie con `mt-auto`, alineado con la base de la foto. El
+      sobrante que quede así se lee como decisión y no como olvido.
+    */}
+    <div class="grid gap-8 lg:grid-cols-[1.75fr_1fr]">
+      <div class="flex flex-col">
+        {/* `flex-1` en la lista y en cada fila: en vez de dejar el sobrante
+            amontonado al final de la columna, las tres filas crecen y se lo
+            reparten hasta llegar al alto de la foto. En móvil no hay nada que
+            repartir —la columna la marca el contenido— y se quedan como están. */}
+        <ul class="flex flex-1 flex-col gap-4" role="list">
           {
             misas.map((misa) => (
-              <li class="rounded-card border border-line bg-surface p-5 shadow-card">
+              /* `flex-wrap` no es decorativo: los domingos llevan cuatro misas
+                 y en pantallas intermedias esa línea tiene que poder partir sin
+                 empujar el día fuera de la fila. */
+              <li class="flex flex-1 flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-card border border-line bg-surface p-5 shadow-card">
                 <h3 class="font-display text-h3 font-bold text-ink">{misa.dia}</h3>
-                <p class="mt-2 text-small text-ink-soft">
-                  {formatHoras(misa.horas, ' · ')}
-                </p>
+                <p class="text-small text-ink-soft">{formatHoras(misa.horas, ' · ')}</p>
+                {/* El tipo `Horario` trae `nota` y esta página la ignoraba. Hoy
+                    las misas no tienen ninguna, pero en cuanto la parroquia
+                    añada una desaparecería sin avisar. */}
+                {misa.nota && <p class="w-full text-small text-muted">{misa.nota}</p>}
               </li>
             ))
           }
         </ul>
 
-        <Button variant="link" href="/horarios" iconEnd="arrow-right" class="mt-6">
+        {/* `self-start` porque Button es `inline-flex` con `justify-center`:
+            dentro de una columna flex se estiraba a todo el ancho y el texto
+            aparecía centrado en mitad de la nada. */}
+        <Button
+          variant="link"
+          href="/horarios"
+          iconEnd="arrow-right"
+          class="mt-6 self-start"
+        >
           Ver todos los horarios
         </Button>
       </div>
 
-      <ImagePlaceholder label="Interior del templo" ratio="4/3" />
+      {/*
+        RANURA CUADRADA, y no 4:3 como estaba. La foto es vertical (3:4) y en
+        una ranura apaisada se dejaba el 44% del alto por el camino. En 1:1
+        pierde el 25%, y lo que se va es el suelo y las gradas: quedan el
+        crucifijo, el sacerdote y el frontal del altar.
+
+        El mockup pide aquí una foto casi vertical (~6:7), así que el 4:3
+        anterior era un error de partida, no una decisión. Con 6:7 se salvaría
+        el 88%, pero la foto mediría 568px de alto frente a los 190px de las
+        tarjetas y desequilibraba la sección.
+
+        La proporción va en el envoltorio, no en la <img>: es la misma trampa
+        que dejó cuadrada una foto 4:3 en el mosaico.
+      */}
+      <div class="overflow-hidden rounded-card" style="aspect-ratio: 1/1">
+        <Image
+          src={interiorTemplo}
+          alt="El sacerdote inciensa el altar durante la misa, bajo el crucifijo del presbiterio"
+          widths={[407, 814]}
+          sizes="(min-width: 1024px) 407px, 100vw"
+          loading="lazy"
+          decoding="async"
+          class="size-full object-cover object-top"
+        />
+      </div>
     </div>
   </section>
 
   {/* 6 — San Chárbel, ruega por nosotros */}
   <section class="mx-auto max-w-(--container-page) px-4 py-6 md:px-6" aria-labelledby="t-santo">
     <div class="relative overflow-hidden rounded-band bg-sand-soft">
-      {/* Marca de agua vegetal. Misma rama que el hero: un solo dibujo
-          para el mismo motivo, en vez de dos SVG que se separan con el tiempo. */}
+      {/* Marca de agua vegetal. Es el único sitio donde queda: el hero también
+          la llevaba y se quitó. Si vuelve a hacer falta en otra sección, se
+          reutiliza este componente y no se dibuja un SVG nuevo. */}
       <Watermark class="-right-16 -bottom-24 w-32 rotate-[125deg] text-olive-700 opacity-10" />
 
       <div class="relative grid items-center gap-8 p-8 md:grid-cols-[auto_1fr_auto] md:gap-10 md:p-12">
+        {/*
+          El `p-1` sobre `bg-gold-500` es el aro dorado: el fondo se ve por el
+          borde y hace de marco. La foto va redonda encima, no cuadrada.
+
+          `object-[center_15%]` y no centrado: el retrato es vertical (0.7) y la
+          ventana redonda se lleva 140px de alto. Centrado corta la capucha y el
+          halo por arriba; al 15% la cara queda en el centro del círculo con el
+          hábito y el halo enteros. Comprobado recortando y enmascarando en
+          círculo las cuatro posiciones, no a ojo sobre el rectángulo.
+        */}
         <div class="mx-auto w-40 shrink-0 rounded-pill bg-gold-500 p-1 md:mx-0">
-          <ImagePlaceholder label="San Chárbel" ratio="1/1" rounded="pill" />
+          <Image
+            src={sanCharbel}
+            alt="Retrato de San Chárbel Makhlouf con el hábito y la capucha monásticos"
+            widths={[152, 304]}
+            sizes="152px"
+            loading="lazy"
+            decoding="async"
+            class="aspect-square w-full rounded-pill object-cover object-[center_15%]"
+          />
         </div>
 
         <div class="text-center md:text-left">
@@ -192,9 +328,61 @@ const momentos = [
     <SectionTitle id="t-ubicacion">Ubicación y contacto</SectionTitle>
 
     <div class="grid gap-8 lg:grid-cols-3 lg:items-start">
-      {/* PENDIENTE: el mapa real se carga bajo demanda para no penalizar la
-          carga con el JS de terceros de Google Maps. */}
-      <ImagePlaceholder label="Mapa de ubicación" ratio="4/3" />
+      {/*
+        Mapa real, incrustado desde la ficha de la parroquia en Google Maps.
+        Las coordenadas viven en `parroquia.mapa`, no aquí.
+
+        SE BUSCA POR NOMBRE, con las coordenadas solo como sesgo (`ll`). Parece
+        un rodeo teniendo las coordenadas exactas, pero es lo que hace que el
+        recuadro muestre la FICHA —nombre, dirección, reseñas y el botón
+        «Abrir en Maps» que lleva al lugar— en vez de un pin mudo. Con
+        `q=<lat>,<lng>` el mapa sale bien pero Google no reconoce el punto como
+        lugar, así que su propio botón «Abrir en Maps» abre unas coordenadas.
+        Era justo el fallo que había aquí.
+
+        Probado con las cuatro formas: por coordenadas, pin sin nombre; por
+        `cid`, el recuadro sale EN BLANCO (esta incrustación no acepta `cid`,
+        aunque sí funcione en un enlace normal); por nombre, con y sin tilde,
+        sale la ficha completa. `ll` es lo que impide que la búsqueda por
+        nombre se vaya a otra parroquia San Chárbel del mundo.
+
+        `loading="lazy"` NO es un adorno: sin él, el JS y las cookies de Google
+        entran en la carga inicial de la portada. La sección está al final, así
+        que en la práctica solo lo descarga quien baja hasta aquí.
+
+        La URL de incrustación no lleva clave de API. Google no la documenta,
+        pero lleva años funcionando; si algún día deja de responder, la salida
+        es la Embed API oficial, que obliga a dar de alta clave y cuenta de
+        facturación.
+
+        `title` es obligatorio: sin nombre accesible, un iframe es un marco
+        anónimo en el que se puede entrar sin saber qué es.
+      */}
+      <div class="flex flex-col gap-3">
+        <div class="overflow-hidden rounded-card border border-line" style="aspect-ratio: 4/3">
+          <iframe
+            src={`https://maps.google.com/maps?q=${encodeURIComponent(parroquia.nombre)}&ll=${parroquia.mapa.lat},${parroquia.mapa.lng}&z=${parroquia.mapa.zoom}&hl=es&output=embed`}
+            title={`Mapa con la ubicación de la ${parroquia.nombre}`}
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            class="size-full border-0"></iframe>
+        </div>
+
+        {/* Abre la ficha de la parroquia en Maps —con sus fotos y el botón de
+            indicaciones—, no un punto suelto en el mapa. El porqué del enlace
+            por `cid` está en parroquia.ts. También es la salida para quien
+            tenga el iframe bloqueado. */}
+        <Button
+          variant="link"
+          href={parroquia.mapa.ficha}
+          iconEnd="arrow-right"
+          target="_blank"
+          rel="noopener"
+          class="self-start"
+        >
+          Ver en Google Maps
+        </Button>
+      </div>
 
       <address class="not-italic">
         <ul class="flex flex-col gap-5" role="list">
@@ -239,7 +427,26 @@ const momentos = [
         </ul>
       </address>
 
-      <ImagePlaceholder label="Fachada del templo" ratio="4/3" />
+      {/*
+        La foto ya viene en 4:3 (1024×768), justo la proporción de la ranura,
+        así que no se recorta nada. El envoltorio mantiene la relación por si
+        algún día entra otra que no encaje.
+
+        Se queda en JPEG y no en webp a propósito: el original pesa 39KB y
+        convertirlo con calidad equivalente daba 58KB. Da igual para lo que se
+        sirve —Astro reencoda a webp al vuelo— y ahorra peso en el repositorio.
+      */}
+      <div class="overflow-hidden rounded-card" style="aspect-ratio: 4/3">
+        <Image
+          src={fachadaTemplo}
+          alt="Fachada del templo, con la torre del campanario coronada por una cúpula roja y una cruz"
+          widths={[363, 726]}
+          sizes="(min-width: 1024px) 363px, 100vw"
+          loading="lazy"
+          decoding="async"
+          class="size-full object-cover"
+        />
+      </div>
     </div>
   </section>
 </BaseLayout>

@@ -12,7 +12,7 @@ import Icon from './Icon.astro';
 import type { IconName } from './icons';
 
 interface Props {
-  variant?: 'primary' | 'outline' | 'link';
+  variant?: 'primary' | 'primary-on-dark' | 'outline' | 'outline-light' | 'link';
   href?: string;
   type?: 'button' | 'submit';
   icon?: IconName;
@@ -38,8 +38,18 @@ const base =
 
 const variantes = {
   primary: 'rounded-pill bg-olive-700 px-6 py-3 text-on-dark hover:bg-olive-600',
+  // Sobre foto o banda oscura. El oliva NO sirve ahí: medido sobre el hero da
+  // 1.06:1 contra el fondo, o sea que el botón desaparece como forma y solo se
+  // lee su texto. WCAG 1.4.11 pide 3:1 para un componente de interfaz.
+  // El dorado es el único color de la paleta que llega (3.41:1).
+  'primary-on-dark':
+    'rounded-pill bg-gold-500 px-6 py-3 text-olive-900 hover:bg-gold-300',
   outline:
     'rounded-pill border border-olive-700 px-6 py-3 text-olive-700 hover:bg-olive-700 hover:text-on-dark',
+  // Solo sobre fondo oscuro (hero con foto, banda oliva). Sobre marfil es
+  // ilegible; ahí va `outline`.
+  'outline-light':
+    'rounded-pill border border-on-dark/50 px-6 py-3 text-on-dark hover:border-on-dark hover:bg-on-dark/10',
   // gold-600 y no gold-500: como texto, el 500 no llega ni a 3:1 sobre marfil.
   link: 'text-gold-600 hover:text-olive-700 hover:underline',
 } as const;
