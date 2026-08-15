@@ -1,0 +1,52 @@
+---
+/**
+ * Brand — logo circular + wordmark en dos líneas.
+ *
+ * Se repite idéntico en el encabezado y en el pie, con la única diferencia del
+ * color del texto, de ahí la variante `tone`.
+ *
+ * El retrato es un marcador hasta que llegue el logo oficial en vectorial.
+ */
+import { parroquia } from '@/data/parroquia';
+
+interface Props {
+  tone?: 'dark' | 'light';
+  /** El pie no necesita enlazar a Inicio si ya está en la lista de enlaces. */
+  href?: string | null;
+  class?: string;
+}
+
+const { tone = 'dark', href = '/', class: className } = Astro.props;
+
+const Tag = href ? 'a' : 'div';
+const textoPrincipal = tone === 'light' ? 'text-on-dark' : 'text-ink';
+const textoSecundario = tone === 'light' ? 'text-on-dark-muted' : 'text-muted';
+---
+
+<Tag
+  href={href ?? undefined}
+  aria-label={href ? `${parroquia.nombre} — Inicio` : undefined}
+  class:list={['group flex min-h-11 items-center gap-3 no-underline', className]}
+>
+  {/* PENDIENTE: logo oficial en vectorial. */}
+  <span
+    class="grid size-11 shrink-0 place-items-center overflow-hidden rounded-pill bg-sand-soft ring-1 ring-gold-300"
+    aria-hidden="true"
+  >
+    <svg viewBox="0 0 24 24" class="size-6 text-olive-700" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M12 2v4M10 4h4" stroke-linecap="round"></path>
+      <path d="M7 21V11l5-4 5 4v10" stroke-linejoin="round"></path>
+      <path d="M4 21h16" stroke-linecap="round"></path>
+      <path d="M10.5 21v-4h3v4" stroke-linejoin="round"></path>
+    </svg>
+  </span>
+
+  <span class="flex flex-col leading-tight">
+    <span class:list={['font-display text-[1.05rem] font-bold tracking-tight', textoPrincipal]}>
+      Parroquia San Chárbel
+    </span>
+    <span class:list={['text-[0.6rem] font-semibold tracking-[0.14em] uppercase', textoSecundario]}>
+      {parroquia.barrio}, {parroquia.ciudad}
+    </span>
+  </span>
+</Tag>

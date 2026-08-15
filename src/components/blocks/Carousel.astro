@@ -1,0 +1,282 @@
+---
+/**
+ * Carousel — la tira que se desplaza, sin saber qué lleva dentro.
+ *
+ * Nació dentro de MomentosCarousel y se sacó aquí al necesitarla también los
+ * eventos. No es una abstracción por gusto: la mecánica costó dos rondas de
+ * afinar —el `scroll-padding` que alinea la primera pieza y la detección de
+ * extremos por bordes en vez de por `scrollLeft`— y duplicarla habría
+ * duplicado también esos dos errores.
+ *
+ * SIN LIBRERÍA Y SIN AUTOAVANCE. El desplazamiento es scroll nativo con
+ * `scroll-snap`: el navegador ya sabe hacerlo con dedo, trackpad, teclado y
+ * lector de pantalla. Y nada se mueve solo — §5 de `docs/DESIGN.md` recuerda
+ * que parte de la comunidad es adulta mayor, y un carrusel que avanza a
+ * destiempo es justo lo que peor le sienta.
+ *
+ * CAPAS. Sin JavaScript la tira se desplaza igual y el contenido se ve; las
+ * flechas son mejora progresiva y solo aparecen si el script corre.
+ *
+ * QUIEN LO USA pone los `<li>`: esta tira no impone medidas. Cada `<li>`
+ * necesita al menos `shrink-0` y `snap-start`.
+ */
+import Icon from '@/components/ui/Icon.astro';
+
+interface Props {
+  /** Necesario para que las flechas apunten a su tira con `aria-controls`. */
+  id: string;
+  /** Nombre accesible de la zona desplazable. */
+  label: string;
+  etiquetaAnterior: string;
+  etiquetaSiguiente: string;
+  /** Clases extra para el `<ul>`, p. ej. el `gap` que quiera cada uno. */
+  class?: string;
+  /**
+   * Puntos de paginación en vez de la barra de scroll.
+   *
+   * SOLO PARA PIEZAS DE ANCHO UNIFORME Y EN NÚMERO ACOTADO. Los puntos se
+   * calculan dividiendo el ancho visible entre el de una pieza, así que con
+   * anchos distintos las páginas salen desiguales y pulsar un punto lleva a
+   * un sitio arbitrario. Y como hay un punto por página, un carrusel que
+   * crece sin límite acaba con una fila de puntos inservible.
+   *
+   * Por eso los eventos los llevan (5 tarjetas iguales, como mucho) y las
+   * fotos de Momentos no (número abierto y anchos variables): ahí la barra de
+   * scroll es el control honesto.
+   */
+  paginacion?: boolean;
+}
+
+const {
+  id,
+  label,
+  etiquetaAnterior,
+  etiquetaSiguiente,
+  class: className = 'gap-3',
+  paginacion = false,
+} = Astro.props;
+---
+
+<div class="group/carrusel relative" data-carrusel data-paginacion={paginacion ? '' : undefined}>
+  {/*
+    `tabindex="0"` no es decorativo: una zona con scroll horizontal tiene que
+    poder recorrerse con el teclado (WCAG 2.1.1). Con foco, las flechas la
+    desplazan sin necesidad de JavaScript.
+
+    El sangrado (`-mx-4` + `px-4`) hace que la tira llegue al borde de la
+    pantalla y se vea que sigue habiendo contenido a la derecha. El padding
+    devuelve el margen, así que la primera pieza queda alineada con el título.
+
+    `scroll-pl-*` TIENE QUE ACOMPAÑAR AL PADDING. `snap-start` alinea cada
+    pieza con el borde del puerto de scroll, que queda por DENTRO del padding:
+    sin esto la tira se coloca sola en scrollLeft=24 y la primera pieza aparece
+    cortada por la izquierda. El `scroll-padding` mete ese margen en el cálculo
+    del snap.
+  */}
+  <ul
+    id={id}
+    role="list"
+    tabindex="0"
+    aria-label={label}
+    data-tira
+    class:list={[
+      '-mx-4 flex snap-x snap-mandatory scroll-pl-4 overflow-x-auto px-4 pb-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-olive-700 md:-mx-6 md:scroll-pl-6 md:px-6 motion-safe:scroll-smooth',
+      /*
+        La barra de scroll se esconde SOLO cuando el script ha podido montar
+        los puntos, no por llevar `paginacion`. El marcador `data-hay-puntos`
+        lo pone el JS: sin él, la barra sigue ahí, que es la única forma de
+        saber que la tira se desplaza cuando no hay puntos que lo digan.
+      */
+      'group-data-[hay-puntos]/carrusel:[scrollbar-width:none] group-data-[hay-puntos]/carrusel:[&::-webkit-scrollbar]:hidden',
+      className,
+    ]}
+  >
+    <slot />
+  </ul>
+
+  {
+    paginacion && (
+      /* Lo rellena el script: cuántos puntos hacen falta depende del ancho de
+         la ventana, así que no se puede saber al construir la página. */
+      <div data-puntos class="mt-4 flex justify-center" />
+    )
+  }
+
+  {/*
+    Flechas: solo con ratón y pantalla ancha. Nacen ocultas y el script las
+    muestra — sin JavaScript no harían nada, así que no deben aparecer.
+    `size-11` son 44px, el blanco táctil mínimo de §5.
+
+    `z-20` NO ES DECORATIVO. Las flechas se montan encima de las piezas, y una
+    tarjeta que es toda ella un enlace se estira con un `::after` que lleva
+    `z-10`. Sin z-index propio, la flecha quedaba por debajo y el clic se lo
+    llevaba la tarjeta: pulsar «siguiente» abría el evento en vez de pasar de
+    grupo. Cualquier cosa que se ponga sobre la tira tiene que ir por encima de
+    ese `z-10`.
+  */}
+  <button
+    type="button"
+    data-tira-anterior
+    hidden
+    aria-controls={id}
+    aria-label={etiquetaAnterior}
+    class="absolute top-1/2 -left-3 z-20 hidden size-11 -translate-y-1/2 place-items-center rounded-pill border border-line bg-surface text-ink shadow-card transition-colors hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700 md:grid"
+  >
+    <Icon name="chevron-left" size={22} />
+  </button>
+
+  <button
+    type="button"
+    data-tira-siguiente
+    hidden
+    aria-controls={id}
+    aria-label={etiquetaSiguiente}
+    class="absolute top-1/2 -right-3 z-20 hidden size-11 -translate-y-1/2 place-items-center rounded-pill border border-line bg-surface text-ink shadow-card transition-colors hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700 md:grid"
+  >
+    <Icon name="chevron-right" size={22} />
+  </button>
+</div>
+
+<script>
+  /*
+    Se cablean TODAS las tiras de la página, no una por `id`. Astro empaqueta
+    este script una sola vez aunque el componente se use varias veces, así que
+    buscar un `id` concreto dejaría sin flechas a todas las instancias menos
+    una. Cada carrusel resuelve las suyas dentro de su propio contenedor, que
+    es lo que impide que las flechas de uno muevan la tira del otro.
+  */
+  for (const carrusel of document.querySelectorAll<HTMLElement>('[data-carrusel]')) {
+    const tira = carrusel.querySelector<HTMLElement>('[data-tira]');
+    const anterior = carrusel.querySelector<HTMLButtonElement>('[data-tira-anterior]');
+    const siguiente = carrusel.querySelector<HTMLButtonElement>('[data-tira-siguiente]');
+    if (!tira || !anterior || !siguiente) continue;
+
+    // Un pelo menos de lo visible, para no saltarse la pieza del borde.
+    const paso = () => tira.clientWidth * 0.8;
+    anterior.addEventListener('click', () => tira.scrollBy({ left: -paso() }));
+    siguiente.addEventListener('click', () => tira.scrollBy({ left: paso() }));
+
+    /*
+      Una flecha que no lleva a ninguna parte confunde más que ayuda, así que
+      cada una se esconde en su extremo.
+
+      Se comparan BORDES, no `scrollLeft`. El sangrado le mete padding lateral
+      y el `snap` deja el reposo inicial en scrollLeft=24, no en 0: cualquier
+      umbral sobre el desplazamiento da "no estamos al principio" nada más
+      cargar. Preguntar si la primera pieza ya se ve entera no depende del
+      padding ni del snap.
+    */
+    const revisarExtremos = () => {
+      if (tira.scrollWidth - tira.clientWidth <= 1) {
+        anterior.hidden = siguiente.hidden = true;
+        return;
+      }
+      const caja = tira.getBoundingClientRect();
+      const primera = tira.firstElementChild?.getBoundingClientRect();
+      const ultima = tira.lastElementChild?.getBoundingClientRect();
+      const margen = 2; // el scroll fraccionario nunca cuadra al píxel
+      anterior.hidden = !primera || primera.left >= caja.left - margen;
+      siguiente.hidden = !ultima || ultima.right <= caja.right + margen;
+    };
+
+    tira.addEventListener('scroll', revisarExtremos, { passive: true });
+    addEventListener('resize', revisarExtremos);
+    revisarExtremos();
+
+    /* ---- Puntos de paginación ---- */
+
+    const contenedorPuntos = carrusel.querySelector<HTMLElement>('[data-puntos]');
+    if (!contenedorPuntos) continue;
+
+    /*
+      Cuántas piezas caben de una vez. El `+ hueco` del numerador está porque
+      la última pieza de la fila no arrastra hueco detrás: sin él, justo cuando
+      caben cuatro exactas el cálculo dice tres y aparece un punto de más que
+      no lleva a ninguna parte.
+    */
+    const porPagina = () => {
+      const pieza = tira.firstElementChild;
+      if (!pieza) return 1;
+      const ancho = pieza.getBoundingClientRect().width;
+      const hueco = parseFloat(getComputedStyle(tira).columnGap) || 0;
+      return Math.max(1, Math.floor((tira.clientWidth + hueco) / (ancho + hueco)));
+    };
+
+    const anchoPagina = () => {
+      const pieza = tira.firstElementChild;
+      if (!pieza) return tira.clientWidth;
+      const hueco = parseFloat(getComputedStyle(tira).columnGap) || 0;
+      return porPagina() * (pieza.getBoundingClientRect().width + hueco);
+    };
+
+    let puntos: HTMLButtonElement[] = [];
+
+    const marcarActivo = () => {
+      if (!puntos.length) return;
+      /*
+        EL FINAL SE MIRA APARTE. La última página casi nunca es una página
+        entera: el scroll máximo se queda corto respecto a `páginas × ancho`.
+        Con solo la división, estando ya al tope el redondeo devolvía la
+        penúltima y el último punto no se marcaba nunca — ni al pulsarlo.
+      */
+      const tope = tira.scrollWidth - tira.clientWidth;
+      const actual =
+        tira.scrollLeft >= tope - 2
+          ? puntos.length - 1
+          : Math.min(puntos.length - 1, Math.round(tira.scrollLeft / anchoPagina()));
+      puntos.forEach((punto, i) => {
+        const activo = i === actual;
+        // `aria-current` y no una clase suelta: es lo que anuncia el lector.
+        if (activo) punto.setAttribute('aria-current', 'true');
+        else punto.removeAttribute('aria-current');
+        punto.firstElementChild?.classList.toggle('bg-olive-700', activo);
+        punto.firstElementChild?.classList.toggle('bg-line', !activo);
+      });
+    };
+
+    const montarPuntos = () => {
+      const total = tira.children.length;
+      const paginas = Math.ceil(total / porPagina());
+
+      // Con una sola página no hay nada que paginar: ni puntos ni esconder la
+      // barra, porque tampoco hay barra.
+      if (paginas <= 1) {
+        contenedorPuntos.replaceChildren();
+        puntos = [];
+        carrusel.removeAttribute('data-hay-puntos');
+        return;
+      }
+
+      carrusel.setAttribute('data-hay-puntos', '');
+      puntos = Array.from({ length: paginas }, (_, i) => {
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        /*
+          28×44 de blanco táctil, no 44×44. La fila entera es la excepción a la
+          regla de §5, y a conciencia: con botones de 44 de ancho los puntos
+          quedaban a 48px de centro a centro y se leían como marcas sueltas, no
+          como un control. Estrechando solo el ancho —el alto sigue siendo 44—
+          se juntan a 28px sin bajar de los 24px que exige WCAG 2.5.8, y sin
+          que las zonas pulsables se solapen, que sería peor que separadas.
+        */
+        boton.className =
+          'grid h-11 w-7 place-items-center rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700';
+        boton.setAttribute('aria-label', `Ir al grupo ${i + 1} de ${paginas}`);
+        boton.setAttribute('aria-controls', tira.id);
+        const punto = document.createElement('span');
+        punto.className = 'size-2.5 rounded-pill bg-line transition-colors';
+        boton.append(punto);
+        // Sin `behavior`: así manda el `scroll-behavior` del CSS, que ya
+        // respeta `prefers-reduced-motion`.
+        boton.addEventListener('click', () => tira.scrollTo({ left: i * anchoPagina() }));
+        return boton;
+      });
+      contenedorPuntos.replaceChildren(...puntos);
+      marcarActivo();
+    };
+
+    tira.addEventListener('scroll', marcarActivo, { passive: true });
+    addEventListener('resize', montarPuntos);
+    montarPuntos();
+  }
+</script>

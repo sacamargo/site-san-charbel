@@ -1,0 +1,49 @@
+---
+/**
+ * ImagePlaceholder — hueco de cada foto que todavía no existe.
+ *
+ * Temporal por diseño: desaparece cuando lleguen las fotos reales de la
+ * parroquia. La trama diagonal es deliberada — deja claro que falta material
+ * en vez de disimularlo con una foto de banco.
+ *
+ * Lleva `aspect-ratio`, así que ya reserva la caja definitiva: sustituirlo por
+ * <Image /> con la misma relación no produce ningún salto de layout.
+ */
+interface Props {
+  ratio?: '16/9' | '4/3' | '3/2' | '1/1';
+  label: string;
+  rounded?: 'card' | 'pill' | 'none';
+  class?: string;
+}
+
+const { ratio = '4/3', label, rounded = 'card', class: className } = Astro.props;
+
+const redondeo = {
+  card: 'rounded-card',
+  pill: 'rounded-pill',
+  none: '',
+}[rounded];
+---
+
+<div
+  class:list={[
+    'relative grid place-items-center overflow-hidden bg-sand-soft p-4',
+    redondeo,
+    className,
+  ]}
+  style={`aspect-ratio: ${ratio}`}
+  role="img"
+  aria-label={`Pendiente: ${label}`}
+>
+  <div
+    class="absolute inset-0 opacity-40"
+    style="background-image: repeating-linear-gradient(45deg, transparent 0 10px, rgb(139 106 53 / .10) 10px 20px)"
+    aria-hidden="true"
+  >
+  </div>
+  <span
+    class="relative text-center text-overline font-semibold tracking-[0.14em] text-gold-600 uppercase"
+  >
+    {label}
+  </span>
+</div>

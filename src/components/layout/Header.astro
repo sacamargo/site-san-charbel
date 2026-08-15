@@ -1,0 +1,119 @@
+---
+/**
+ * Header — encabezado del sitio.
+ *
+ * Fondo marfil sólido (el diseño nuevo no tiene encabezado transparente sobre
+ * el hero) y navegación plana de cuatro ítems. Sin botón "Donar".
+ *
+ * Activo: texto oliva + subrayado dorado de 2px.
+ *
+ * El menú móvil usa <dialog> + showModal(): el atrapado de foco, el cierre con
+ * Esc, el backdrop y el bloqueo de scroll los da el navegador. Son ~15 líneas
+ * de script en vez de ~80 de trampa de foco a mano.
+ */
+import Brand from './Brand.astro';
+import { navegacion } from '@/data/navigation';
+
+const rutaActual = Astro.url.pathname;
+const esActivo = (href: string) =>
+  href === '/' ? rutaActual === '/' : rutaActual.startsWith(href);
+---
+
+<header class="sticky top-0 z-50 border-b border-line bg-ivory/95 backdrop-blur-sm">
+  <div class="mx-auto flex max-w-(--container-page) items-center justify-between gap-6 px-4 py-3 md:px-6">
+    <Brand />
+
+    <nav class="hidden md:block" aria-label="Navegación principal">
+      <ul class="flex items-center gap-8" role="list">
+        {
+          navegacion.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={esActivo(item.href) ? 'page' : undefined}
+                class:list={[
+                  'relative flex min-h-11 items-center text-small font-semibold no-underline transition-colors',
+                  esActivo(item.href)
+                    ? 'text-olive-700 after:absolute after:inset-x-0 after:bottom-2 after:h-0.5 after:rounded-pill after:bg-gold-500'
+                    : 'text-ink-soft hover:text-olive-700',
+                ]}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    {/* --- Móvil --- */}
+    <button
+      type="button"
+      data-menu-open
+      aria-controls="menu-movil"
+      class="grid size-11 place-items-center rounded-pill text-ink md:hidden"
+    >
+      <span class="sr-only">Abrir menú</span>
+      <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<dialog
+  id="menu-movil"
+  aria-label="Menú principal"
+  class="m-0 h-full max-h-full w-full max-w-full bg-ivory p-0 backdrop:bg-olive-900/60"
+>
+  <div class="flex items-center justify-between border-b border-line px-4 py-3">
+    <Brand href={null} />
+    <button
+      type="button"
+      data-menu-close
+      class="grid size-11 place-items-center rounded-pill text-ink"
+    >
+      <span class="sr-only">Cerrar menú</span>
+      <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round"></path>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="px-4 py-6" aria-label="Navegación principal">
+    <ul class="flex flex-col" role="list">
+      {
+        navegacion.map((item) => (
+          <li class="border-b border-line last:border-0">
+            <a
+              href={item.href}
+              aria-current={esActivo(item.href) ? 'page' : undefined}
+              class:list={[
+                'flex min-h-14 items-center font-display text-h3 no-underline',
+                esActivo(item.href) ? 'text-olive-700' : 'text-ink',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+</dialog>
+
+<script>
+  const dialogo = document.getElementById('menu-movil') as HTMLDialogElement | null;
+
+  if (dialogo) {
+    document.querySelector('[data-menu-open]')?.addEventListener('click', () => dialogo.showModal());
+    dialogo.querySelector('[data-menu-close]')?.addEventListener('click', () => dialogo.close());
+
+    dialogo.addEventListener('click', (evento) => {
+      // Clic en el backdrop: el target es el propio <dialog>, no su contenido.
+      if (evento.target === dialogo) dialogo.close();
+      // Y al navegar a un enlace, cerrar (importa con anclas de la misma página).
+      if ((evento.target as HTMLElement).closest('a')) dialogo.close();
+    });
+  }
+</script>

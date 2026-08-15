@@ -1,0 +1,67 @@
+---
+/**
+ * Button — botón y enlace-botón del sitio.
+ *
+ * El diseño usa dos: el oliva relleno (acción principal) y el enlace con
+ * flecha (todos los "Ver todos" / "Más información").
+ *
+ * Altura mínima táctil de 44px en todas las variantes: el padding por sí solo
+ * no llega, así que `min-h-11` es el que hace el trabajo y no se quita.
+ */
+import Icon from './Icon.astro';
+import type { IconName } from './icons';
+
+interface Props {
+  variant?: 'primary' | 'primary-on-dark' | 'outline' | 'outline-light' | 'link';
+  href?: string;
+  type?: 'button' | 'submit';
+  icon?: IconName;
+  iconEnd?: IconName;
+  class?: string;
+  [key: string]: unknown;
+}
+
+const {
+  variant = 'primary',
+  href,
+  type = 'button',
+  icon,
+  iconEnd,
+  class: className,
+  ...rest
+} = Astro.props;
+
+const Tag = href ? 'a' : 'button';
+
+const base =
+  'inline-flex min-h-11 items-center justify-center gap-2 text-small font-semibold no-underline transition-colors';
+
+const variantes = {
+  primary: 'rounded-pill bg-olive-700 px-6 py-3 text-on-dark hover:bg-olive-600',
+  // Sobre foto o banda oscura. El oliva NO sirve ahí: medido sobre el hero da
+  // 1.06:1 contra el fondo, o sea que el botón desaparece como forma y solo se
+  // lee su texto. WCAG 1.4.11 pide 3:1 para un componente de interfaz.
+  // El dorado es el único color de la paleta que llega (3.41:1).
+  'primary-on-dark':
+    'rounded-pill bg-gold-500 px-6 py-3 text-olive-900 hover:bg-gold-300',
+  outline:
+    'rounded-pill border border-olive-700 px-6 py-3 text-olive-700 hover:bg-olive-700 hover:text-on-dark',
+  // Solo sobre fondo oscuro (hero con foto, banda oliva). Sobre marfil es
+  // ilegible; ahí va `outline`.
+  'outline-light':
+    'rounded-pill border border-on-dark/50 px-6 py-3 text-on-dark hover:border-on-dark hover:bg-on-dark/10',
+  // gold-600 y no gold-500: como texto, el 500 no llega ni a 3:1 sobre marfil.
+  link: 'text-gold-600 hover:text-olive-700 hover:underline',
+} as const;
+---
+
+<Tag
+  href={href}
+  type={href ? undefined : type}
+  class:list={[base, variantes[variant], className]}
+  {...rest}
+>
+  {icon && <Icon name={icon} size={18} />}
+  <span><slot /></span>
+  {iconEnd && <Icon name={iconEnd} size={16} />}
+</Tag>

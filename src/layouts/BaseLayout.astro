@@ -1,0 +1,68 @@
+---
+/**
+ * BaseLayout — envoltura de todas las páginas del sitio.
+ * Sistema de diseño: docs/DESIGN.md
+ */
+import { Font } from 'astro:assets';
+import Header from '@/components/layout/Header.astro';
+import Footer from '@/components/layout/Footer.astro';
+import '@/styles/global.css';
+
+interface Props {
+  /** Se antepone al nombre de la parroquia en <title>. */
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+const SITE_NAME = 'Parroquia San Chárbel';
+const fullTitle = `${title} · ${SITE_NAME}`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#2f2e1b" />
+
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    {/* Open Graph y canonical quedan pendientes de que se defina `site` en
+        astro.config.mjs; sin dominio no se pueden emitir URLs absolutas. */}
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:site_name" content={SITE_NAME} />
+
+    {/* Precarga ÚNICAMENTE los dos cortes del hero: el <h1> es Playfair 700 y
+        el párrafo es Nunito 400. Los demás pesos cargan con font-display: swap. */}
+    <Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+    <Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+  </head>
+
+  <body class="min-h-screen">
+    {/* Primer elemento enfocable del documento. */}
+    <a
+      href="#contenido"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:rounded-lg focus:bg-surface focus:px-5 focus:py-3 focus:text-small focus:font-semibold focus:text-ink focus:shadow-lift"
+    >
+      Saltar al contenido
+    </a>
+
+    <Header />
+
+    <main id="contenido">
+      <slot />
+    </main>
+
+    <Footer />
+  </body>
+</html>
