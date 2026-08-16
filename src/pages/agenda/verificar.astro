@@ -1,0 +1,141 @@
+---
+/**
+ * Verificar conexión con Google Calendar.
+ *
+ * Página de diagnóstico para el momento de conectar (o cambiar) el
+ * calendario: prueba `GOOGLE_CALENDAR_ID` + `GOOGLE_CALENDAR_API_KEY` contra
+ * la API real y muestra la identidad del calendario, para confirmar a simple
+ * vista que es el calendario dedicado de la parroquia y no otro por error.
+ *
+ * **Solo funciona con `npm run dev`.** En producción responde 404: no tiene
+ * sentido exponer esta herramienta ni gastar la cuota de la API en visitas
+ * públicas repetidas.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { agendaWindow } from '@/lib/agenda/window';
+import { EVENT_FETCH_CAP, fetchEvents, GoogleCalendarError } from '@/lib/google-calendar/client';
+import { readConfig } from '@/lib/google-calendar/config';
+import { verifyGoogleCalendarConnection, type VerifyResult } from '@/lib/google-calendar/verify';
+
+if (!import.meta.env.DEV) {
+  return new Response(null, { status: 404 });
+}
+
+const config = readConfig();
+const resultado: VerifyResult | null = config ? await verifyGoogleCalendarConnection(config) : null;
+
+// Segundo chequeo, independiente del primero: ¿de verdad trae eventos en la
+// ventana que consulta el sitio? Si este falla, el diagnóstico de arriba
+// sigue siendo válido — no se ocultan uno al otro.
+let conteoEventos: number | null = null;
+let errorConteo: string | null = null;
+if (config && resultado?.ok) {
+  try {
+    const eventos = await fetchEvents(config, agendaWindow());
+    conteoEventos = eventos.length;
+  } catch (error) {
+    errorConteo = error instanceof GoogleCalendarError ? error.message : 'No se pudo contar los eventos.';
+  }
+}
+---
+
+<BaseLayout
+  title="Verificar conexión — Agenda"
+  description="Diagnóstico de la conexión con Google Calendar."
+>
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    <p class="bg-gold-600 -mx-4 mb-10 px-4 py-2 text-center text-small font-bold text-on-dark md:-mx-6">
+      Herramienta de diagnóstico. Solo visible en desarrollo.
+    </p>
+
+    <h1 class="font-display text-h2 font-bold text-ink">Verificar conexión con Google Calendar</h1>
+    <p class="mt-2 max-w-[65ch] text-body text-ink-soft">
+      Prueba las variables de entorno actuales contra la Calendar API real. Guía completa en{' '}
+      <code class="rounded bg-sand-soft px-1.5 py-0.5 text-small">docs/CONECTAR-GOOGLE-CALENDAR.md</code>.
+    </p>
+
+    <div class="mt-10 max-w-[65ch] space-y-6">
+      {
+        !config && (
+          <div class="flex gap-4 rounded-card border border-l-4 border-sand border-l-gold-600 bg-sand-soft px-5 py-4">
+            <Icon name="triangle-alert" size={22} class="mt-0.5 shrink-0 text-gold-600" />
+            <div>
+              <p class="text-body font-bold text-ink">Faltan variables de entorno</p>
+              <p class="mt-1 text-small text-ink-soft">
+                Define <code>GOOGLE_CALENDAR_ID</code> y <code>GOOGLE_CALENDAR_API_KEY</code> en tu{' '}
+                <code>.env</code> y recarga esta página.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        resultado && !resultado.ok && (
+          <div class="flex gap-4 rounded-card border border-l-4 border-sand border-l-gold-600 bg-sand-soft px-5 py-4">
+            <Icon name="triangle-alert" size={22} class="mt-0.5 shrink-0 text-gold-600" />
+            <div>
+              <p class="text-body font-bold text-ink">No se pudo conectar</p>
+              <p class="mt-1 text-small text-ink-soft">{resultado.error}</p>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        resultado?.ok && resultado.calendar && (
+          <div class="flex gap-4 rounded-card border border-l-4 border-sand border-l-olive-700 bg-surface px-5 py-4">
+            <Icon name="circle-check" size={22} class="mt-0.5 shrink-0 text-olive-700" />
+            <div class="min-w-0">
+              <p class="text-body font-bold text-ink">Conexión correcta</p>
+              <dl class="mt-3 space-y-2 text-small text-ink-soft">
+                <div>
+                  <dt class="inline font-bold text-ink">Nombre del calendario: </dt>
+                  <dd class="inline">{resultado.calendar.summary}</dd>
+                </div>
+                <div>
+                  <dt class="inline font-bold text-ink">ID: </dt>
+                  <dd class="inline break-all">{resultado.calendar.id}</dd>
+                </div>
+                {resultado.calendar.timeZone && (
+                  <div>
+                    <dt class="inline font-bold text-ink">Zona horaria: </dt>
+                    <dd class="inline">{resultado.calendar.timeZone}</dd>
+                  </div>
+                )}
+                {resultado.calendar.description && (
+                  <div>
+                    <dt class="inline font-bold text-ink">Descripción: </dt>
+                    <dd class="inline">{resultado.calendar.description}</dd>
+                  </div>
+                )}
+                <div>
+                  <dt class="inline font-bold text-ink">Eventos en la ventana consultable: </dt>
+                  <dd class="inline">
+                    {conteoEventos !== null
+                      ? `${conteoEventos}${conteoEventos >= EVENT_FETCH_CAP ? ' (tope alcanzado — ver consola)' : ''}`
+                      : (errorConteo ?? 'sin verificar')}
+                  </dd>
+                </div>
+              </dl>
+              <p class="mt-4 text-small text-ink-soft">
+                Confirma que este es el calendario <strong>dedicado de la parroquia</strong>, no uno personal
+                ni de otra organización.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        resultado?.warnings.map((warning) => (
+          <div class="flex gap-4 rounded-card border border-l-4 border-sand border-l-gold-600 bg-sand-soft px-5 py-4">
+            <Icon name="triangle-alert" size={22} class="mt-0.5 shrink-0 text-gold-600" />
+            <p class="text-small text-ink-soft">{warning}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
