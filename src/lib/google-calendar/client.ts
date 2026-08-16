@@ -11,6 +11,7 @@
 
 import { TIME_ZONE } from '@/lib/format';
 import type { AgendaConfig } from './config';
+import { describeGoogleCalendarFailure } from './errors';
 
 const API_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 
@@ -30,6 +31,9 @@ const REQUEST_TIMEOUT_MS = 8_000;
  */
 const MAX_PAGES = 8;
 const PAGE_SIZE = 250;
+
+/** Cuántos eventos trae `fetchEvents` como máximo antes de recortar. */
+export const EVENT_FETCH_CAP = MAX_PAGES * PAGE_SIZE;
 
 export interface GoogleEventDate {
   date?: string;
@@ -56,19 +60,6 @@ export class GoogleCalendarError extends Error {
     super(message);
     this.name = 'GoogleCalendarError';
   }
-}
-
-function describeFailure(status: number, body: string): string {
-  if (status === 404) {
-    return 'El calendario no existe o no está marcado como público.';
-  }
-  if (status === 403) {
-    return 'La clave de API fue rechazada: revisa que la Calendar API esté habilitada y que las restricciones de la clave permitan este uso.';
-  }
-  if (status === 400) {
-    return `Google rechazó los parámetros de la consulta. ${body.slice(0, 200)}`;
-  }
-  return `Google respondió ${status}. ${body.slice(0, 200)}`;
 }
 
 /**
@@ -108,7 +99,7 @@ export async function fetchEvents(
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      throw new GoogleCalendarError(describeFailure(response.status, body), response.status);
+      throw new GoogleCalendarError(describeGoogleCalendarFailure(response.status, body), response.status);
     }
 
     const payload = (await response.json()) as {

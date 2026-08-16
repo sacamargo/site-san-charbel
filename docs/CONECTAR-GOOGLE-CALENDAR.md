@@ -131,6 +131,22 @@ aparecer.
 > `.env` está en `.gitignore`: **nunca se sube a GitHub**. Cada compañero crea el suyo, y en el
 > servidor de producción las dos variables se configuran en el panel del hosting.
 
+### Verificar que quedó bien conectado
+
+Antes de dar por buena la conexión, abre `http://localhost:4321/agenda/verificar`. Prueba el
+`GOOGLE_CALENDAR_ID` y la `GOOGLE_CALENDAR_API_KEY` contra Google en el momento y muestra:
+
+- Si la conexión funciona o no, con el motivo exacto si falla (mismo diagnóstico 400/403/404 de
+  la tabla de abajo, sin tener que ir a la terminal).
+- El **nombre real del calendario** — así se confirma a simple vista que es el calendario
+  dedicado de la parroquia y no otro por error. Esto pasó una vez: se probó contra el calendario
+  principal de una cuenta que no era el de la parroquia, público con todos los detalles visibles.
+- Un aviso si el `GOOGLE_CALENDAR_ID` tiene forma de calendario **principal** (una dirección de
+  correo normal) en vez de **secundario dedicado** (termina en `@group.calendar.google.com`).
+- Cuántos eventos hay en la ventana que consulta el sitio (mes anterior → +12 meses).
+
+Es una página de diagnóstico: solo existe con `npm run dev` y responde `404` en producción.
+
 ---
 
 ## Cómo se usa a partir de ahora
