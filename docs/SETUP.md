@@ -14,15 +14,19 @@ Desde la raíz del repositorio:
 
 ```bash
 npm ci --ignore-scripts
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Completa `.env` con la URL y la publishable key del proyecto `san-charbel-dev`. Ese archivo está ignorado por Git y nunca debe compartirse.
+Completa `.env.local` con la URL y la publishable key del proyecto Supabase. Ese archivo está ignorado por Git y nunca debe compartirse.
 
 ```env
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_KEY=sb_publishable_...
 PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
+
+El cliente de servidor vive en `src/db/supabase.ts`. Para Auth/SSR del admin se usan `src/lib/supabase/server.ts` y `browser.ts`.
 
 ## Desarrollo
 
