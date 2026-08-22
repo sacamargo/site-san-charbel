@@ -1,10 +1,33 @@
 -- Fundación admin — Parroquia San Chárbel
 -- Aplicar en Supabase → SQL Editor (proyecto DEV).
 -- No contiene service_role ni secretos.
+--
+-- Orden importante: primero la tabla profiles, después is_admin()
+-- (si no, Postgres falla con 42P01).
 
 -- ---------------------------------------------------------------------------
--- Helpers
+-- Helpers sin dependencia de tablas
 -- ---------------------------------------------------------------------------
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- profiles (antes de is_admin)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  role text not null check (role in ('admin')),
+  created_at timestamptz not null default now()
+);
 
 create or replace function public.is_admin()
 returns boolean
@@ -20,26 +43,6 @@ as $$
       and p.role = 'admin'
   );
 $$;
-
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
--- ---------------------------------------------------------------------------
--- profiles
--- ---------------------------------------------------------------------------
-
-create table if not exists public.profiles (
-  user_id uuid primary key references auth.users (id) on delete cascade,
-  role text not null check (role in ('admin')),
-  created_at timestamptz not null default now()
-);
 
 alter table public.profiles enable row level security;
 

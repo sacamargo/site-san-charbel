@@ -8,6 +8,7 @@ En el dashboard de Supabase → **SQL Editor** → New query.
 
 1. Pega y ejecuta todo el contenido de:
    - [`supabase/migrations/20260822160000_admin_foundation.sql`](../supabase/migrations/20260822160000_admin_foundation.sql)
+   - Si falló antes con `relation "public.profiles" does not exist`, vuelve a pegar el archivo completo (ya está corregido el orden: primero `profiles`, después `is_admin()`).
 2. Luego el de semilla (opcional pero recomendado):
    - [`supabase/migrations/20260822160100_admin_seed.sql`](../supabase/migrations/20260822160100_admin_seed.sql)
 
