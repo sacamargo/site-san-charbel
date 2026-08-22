@@ -9,8 +9,8 @@ En el dashboard de Supabase → **SQL Editor** → New query.
 1. Pega y ejecuta todo el contenido de:
    - [`supabase/migrations/20260822160000_admin_foundation.sql`](../supabase/migrations/20260822160000_admin_foundation.sql)
    - Si falló antes con `relation "public.profiles" does not exist`, vuelve a pegar el archivo completo (ya está corregido el orden: primero `profiles`, después `is_admin()`).
-2. Luego el de semilla (opcional pero recomendado):
-   - [`supabase/migrations/20260822160100_admin_seed.sql`](../supabase/migrations/20260822160100_admin_seed.sql)
+3. **Formulario único de servicios** (después de la fundación):
+   - [`supabase/migrations/20260822170000_services_form_global.sql`](../supabase/migrations/20260822170000_services_form_global.sql)
 
 Eso crea tablas, RLS, buckets de Storage y la fila de contacto.
 
@@ -59,9 +59,14 @@ En el proyecto de Vercel → Settings → Environment Variables, añade las mism
 | `/admin/horarios` | Horarios de misa y servicios |
 | `/admin/contacto` | Dirección, teléfonos, redes |
 | `/admin/momentos` | Fotos del carrusel |
-| `/admin/servicios` | Lista abierta + pegar iframe Google Forms |
+| `/admin/servicios` | Lista abierta de servicios + **un** Google Form global |
 | `/admin/banner` | Slides de publicidad |
 
 ## Google Forms en Servicios
 
-En el admin, pega el HTML del iframe (Enviar → Incorporar) o la URL `viewform`. Solo se aceptan URLs de `https://docs.google.com/forms/`.
+Hay **un solo** formulario para todos los servicios. En `/admin/servicios`, sección
+“Formulario de solicitudes (único)”, pega el iframe o la URL `viewform`.
+Solo se aceptan URLs de `https://docs.google.com/forms/`.
+
+Los eventos de `/admin/eventos` aparecen en `/agenda` y en la portada solo si están
+**Publicados**.

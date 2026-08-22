@@ -128,8 +128,8 @@ const email = Astro.locals.adminUser?.email ?? null;
 				<input name="lugar" placeholder="Templo parroquial" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
 			</label>
 			<label class="flex items-center gap-2 sm:col-span-2">
-				<input type="checkbox" name="publicado" class="size-4" />
-				<span class="text-small font-semibold">Publicar ahora</span>
+				<input type="checkbox" name="publicado" checked class="size-4" />
+				<span class="text-small font-semibold">Publicar ahora (necesario para verse en /agenda y la portada)</span>
 			</label>
 			<div class="sm:col-span-2">
 				<button

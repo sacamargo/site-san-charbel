@@ -1,111 +1,138 @@
 /**
- * Consultas de la Agenda — Google Calendar en solo lectura.
+ * Consultas de la Agenda — tabla `events` en Supabase.
  *
- * Ninguna lanza: la página de agenda tiene que renderizar aunque Google esté
- * caído, aunque falten las variables de entorno y aunque no haya un solo
- * evento cargado. El estado se comunica, no se esconde.
- *
- * Contrato 1 del equipo: la agenda viene de Google Calendar y **Supabase no
- * tendrá tabla de eventos**. Por eso este archivo no toca Supabase, a
- * diferencia de `celebraciones.ts`.
+ * Misma forma `ParishEvent` que consumen el calendario mensual y las listas.
+ * Sin Google Calendar.
  */
 
-import { withCache } from '@/lib/cache';
 import { claveDia } from '@/lib/agenda/format';
 import { agendaWindow, anchor, eventDayKeys } from '@/lib/agenda/window';
-import { fetchEvents } from '@/lib/google-calendar/client';
-import { readConfig } from '@/lib/google-calendar/config';
-import { toParishEvents } from '@/lib/google-calendar/normalize';
+import { supabase } from '@/db/supabase';
 import type { AgendaResult, EventDayGroup, ParishEvent } from '@/lib/types';
 
 const EMPTY: AgendaResult = { status: 'not-configured', events: [], fetchedAt: null };
 
-/**
- * Todos los eventos de la ventana consultable, en una sola llamada cacheada.
- *
- * La vista mensual, la lista de próximos eventos y los destacados de la portada
- * se derivan de aquí. Es deliberado: una llamada a Google cada diez minutos
- * alimenta el sitio entero.
- */
+type EventRow = {
+	id: string;
+	titulo: string;
+	resumen: string | null;
+	fecha_inicio: string;
+	fecha_fin: string | null;
+	hora: string | null;
+	lugar: string | null;
+	flyer_url: string | null;
+	publicado: boolean;
+};
+
+/** Interpreta fecha/hora de la parroquia en zona America/Bogota (−05). */
+function rowToParishEvent(row: EventRow): ParishEvent {
+	const allDay = !row.hora;
+	const hora = row.hora ? String(row.hora).slice(0, 8) : '12:00:00';
+	const start = new Date(`${row.fecha_inicio}T${hora.length === 5 ? `${hora}:00` : hora}-05:00`);
+
+	let end: Date;
+	if (row.fecha_fin) {
+		end = new Date(`${row.fecha_fin}T${hora.length === 5 ? `${hora}:00` : hora}-05:00`);
+		if (allDay) {
+			// Inclusive: fin del día en Bogotá
+			end = new Date(`${row.fecha_fin}T23:59:59-05:00`);
+		}
+	} else if (allDay) {
+		end = new Date(`${row.fecha_inicio}T23:59:59-05:00`);
+	} else {
+		end = new Date(start.getTime() + 60 * 60 * 1000);
+	}
+
+	return {
+		id: row.id,
+		title: row.titulo,
+		description: row.resumen?.trim() || null,
+		start,
+		end,
+		allDay,
+		location: row.lugar,
+		flyerUrl: row.flyer_url,
+		sourceUrl: null,
+	};
+}
+
 export async function getAgenda(now: Date = new Date()): Promise<AgendaResult> {
-  const config = readConfig();
-  if (!config) return EMPTY;
+	const window = agendaWindow(now);
 
-  const window = agendaWindow(now);
-  const key = `agenda:${config.calendarId}:${window.firstMonth}:${window.lastMonth}`;
+	try {
+		const { data, error } = await supabase
+			.from('events')
+			.select('id,titulo,resumen,fecha_inicio,fecha_fin,hora,lugar,flyer_url,publicado')
+			.eq('publicado', true)
+			.lte('fecha_inicio', `${window.lastMonth}-31`)
+			.gte('fecha_inicio', `${window.firstMonth}-01`)
+			.order('fecha_inicio', { ascending: true });
 
-  try {
-    const hit = await withCache(
-      key,
-      { ttlMs: config.ttlMs, staleMs: config.staleMs },
-      async () => toParishEvents(await fetchEvents(config, window)),
-    );
+		if (error) {
+			console.error('[agenda] Supabase:', error.message);
+			// Tabla inexistente u otro fallo de esquema
+			if (error.code === '42P01' || /Could not find|schema cache/i.test(error.message)) {
+				return EMPTY;
+			}
+			return { status: 'unavailable', events: [], fetchedAt: null };
+		}
 
-    return {
-      status: hit.stale ? 'stale' : 'ok',
-      events: hit.value,
-      fetchedAt: hit.fetchedAt,
-    };
-  } catch (error) {
-    console.error('[agenda] No se pudo leer Google Calendar:', error);
-    return { status: 'unavailable', events: [], fetchedAt: null };
-  }
+		const events = (data as EventRow[] | null)?.map(rowToParishEvent) ?? [];
+		events.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+		return {
+			status: 'ok',
+			events,
+			fetchedAt: now,
+		};
+	} catch (error) {
+		console.error('[agenda] No se pudo leer events:', error);
+		return { status: 'unavailable', events: [], fetchedAt: null };
+	}
 }
 
-/** Los eventos indexados por día, expandiendo los que duran varias jornadas. */
 export function eventsByDay(events: ParishEvent[]): Map<string, ParishEvent[]> {
-  const index = new Map<string, ParishEvent[]>();
+	const index = new Map<string, ParishEvent[]>();
 
-  for (const event of events) {
-    for (const key of eventDayKeys(event)) {
-      const bucket = index.get(key);
-      if (bucket) bucket.push(event);
-      else index.set(key, [event]);
-    }
-  }
+	for (const event of events) {
+		for (const key of eventDayKeys(event)) {
+			const list = index.get(key);
+			if (list) list.push(event);
+			else index.set(key, [event]);
+		}
+	}
 
-  return index;
+	return index;
 }
 
-/**
- * Los próximos eventos, en orden. Un evento sigue siendo "próximo" mientras no
- * haya terminado: el que empezó hace media hora se sigue mostrando, porque
- * quien entra al sitio a las 6:15 quiere saber que la misa de las 6 está en
- * curso, no que ya desapareció.
- */
 export function upcomingEvents(
-  events: ParishEvent[],
-  now: Date = new Date(),
-  limit = 12,
+	events: ParishEvent[],
+	now: Date = new Date(),
+	limit = 12,
 ): ParishEvent[] {
-  return events.filter((event) => event.end >= now).slice(0, limit);
+	return events.filter((event) => event.end >= now).slice(0, limit);
 }
 
-/** Agrupa una lista ya ordenada por día, para la lista de próximos eventos. */
 export function groupByDay(events: ParishEvent[]): EventDayGroup[] {
-  const groups: EventDayGroup[] = [];
+	const groups: EventDayGroup[] = [];
 
-  for (const event of events) {
-    const key = claveDia(event.start);
-    const last = groups.at(-1);
+	for (const event of events) {
+		const key = claveDia(event.start);
+		const last = groups.at(-1);
 
-    if (last?.key === key) {
-      last.events.push(event);
-      continue;
-    }
+		if (last?.key === key) {
+			last.events.push(event);
+			continue;
+		}
 
-    const [year, month, day] = key.split('-').map(Number) as [number, number, number];
-    groups.push({ key, date: anchor(year, month, day), events: [event] });
-  }
+		const [year, month, day] = key.split('-').map(Number) as [number, number, number];
+		groups.push({ key, date: anchor(year, month, day), events: [event] });
+	}
 
-  return groups;
+	return groups;
 }
 
-/**
- * Los destacados que consume la portada.
- * Contrato 2: la landing lee de aquí, no duplica datos.
- */
 export async function getProximosEventos(limite = 3, now: Date = new Date()): Promise<AgendaResult> {
-  const agenda = await getAgenda(now);
-  return { ...agenda, events: upcomingEvents(agenda.events, now, limite) };
+	const agenda = await getAgenda(now);
+	return { ...agenda, events: upcomingEvents(agenda.events, now, limite) };
 }
