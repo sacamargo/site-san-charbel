@@ -1,0 +1,187 @@
+---
+/**
+ * Módulo Eventos — crear, editar publicación y borrar.
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+	request: Astro.request,
+	cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+	const form = await Astro.request.formData();
+	const intent = String(form.get('intent') ?? '');
+
+	if (intent === 'create') {
+		const titulo = String(form.get('titulo') ?? '').trim();
+		const resumen = String(form.get('resumen') ?? '').trim();
+		const fecha_inicio = String(form.get('fecha_inicio') ?? '');
+		const fecha_fin = String(form.get('fecha_fin') ?? '') || null;
+		const hora = String(form.get('hora') ?? '') || null;
+		const lugar = String(form.get('lugar') ?? '').trim() || null;
+		const publicado = form.get('publicado') === 'on';
+
+		if (!titulo || !fecha_inicio) {
+			errorMsg = 'Título y fecha de inicio son obligatorios.';
+		} else {
+			const { error } = await supabase.from('events').insert({
+				titulo,
+				resumen,
+				fecha_inicio,
+				fecha_fin,
+				hora,
+				lugar,
+				publicado,
+			});
+			if (error) errorMsg = error.message;
+			else notice = 'Evento creado.';
+		}
+	}
+
+	if (intent === 'toggle') {
+		const id = String(form.get('id') ?? '');
+		const publicado = form.get('publicado') === 'true';
+		const { error } = await supabase.from('events').update({ publicado: !publicado }).eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = publicado ? 'Evento ocultado.' : 'Evento publicado.';
+	}
+
+	if (intent === 'delete') {
+		const id = String(form.get('id') ?? '');
+		const { error } = await supabase.from('events').delete().eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = 'Evento eliminado.';
+	}
+}
+
+const { data: events, error: listError } = await supabase
+	.from('events')
+	.select('*')
+	.order('fecha_inicio', { ascending: true });
+
+if (listError && !errorMsg) {
+	errorMsg =
+		listError.message.includes('Could not find') || listError.code === '42P01'
+			? 'La tabla events aún no existe. Aplica la migración SQL (docs/ADMIN-SETUP.md).'
+			: listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout title="Eventos" email={email}>
+	<div class="flex flex-wrap items-end justify-between gap-4">
+		<div>
+			<h1 class="font-display text-h2 font-bold">Eventos</h1>
+			<p class="mt-1 text-small text-ink-soft">
+				Aparecen en la portada (próximos) y en /agenda cuando están publicados.
+			</p>
+		</div>
+	</div>
+
+	{
+		notice && (
+			<p class="mt-4 rounded-lg bg-sand-soft px-3 py-2 text-small text-ink" role="status">
+				{notice}
+			</p>
+		)
+	}
+	{
+		errorMsg && (
+			<p class="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-small text-gold-600" role="alert">
+				{errorMsg}
+			</p>
+		)
+	}
+
+	<section class="mt-8 rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="nuevo-evento">
+		<h2 id="nuevo-evento" class="font-display text-h3 font-bold">Nuevo evento</h2>
+		<form method="POST" class="mt-4 grid gap-4 sm:grid-cols-2">
+			<input type="hidden" name="intent" value="create" />
+			<label class="block sm:col-span-2">
+				<span class="text-small font-semibold">Título *</span>
+				<input name="titulo" required class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block sm:col-span-2">
+				<span class="text-small font-semibold">Asunto / resumen</span>
+				<textarea name="resumen" rows="2" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2"></textarea>
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Fecha inicio *</span>
+				<input type="date" name="fecha_inicio" required class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Fecha fin</span>
+				<input type="date" name="fecha_fin" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Hora</span>
+				<input type="time" name="hora" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Lugar</span>
+				<input name="lugar" placeholder="Templo parroquial" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="flex items-center gap-2 sm:col-span-2">
+				<input type="checkbox" name="publicado" class="size-4" />
+				<span class="text-small font-semibold">Publicar ahora</span>
+			</label>
+			<div class="sm:col-span-2">
+				<button
+					type="submit"
+					class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+				>
+					Crear evento
+				</button>
+			</div>
+		</form>
+	</section>
+
+	<section class="mt-10" aria-labelledby="lista-eventos">
+		<h2 id="lista-eventos" class="font-display text-h3 font-bold">Listado</h2>
+		{
+			!events?.length ? (
+				<p class="mt-4 text-small text-ink-soft">Todavía no hay eventos.</p>
+			) : (
+				<ul class="mt-4 divide-y divide-line rounded-card border border-line bg-surface">
+					{events.map((ev) => (
+						<li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+							<div>
+								<p class="font-semibold text-ink">{ev.titulo}</p>
+								<p class="text-small text-ink-soft">
+									{ev.fecha_inicio}
+									{ev.hora ? ` · ${String(ev.hora).slice(0, 5)}` : ''}
+									{ev.lugar ? ` · ${ev.lugar}` : ''}
+									{' · '}
+									{ev.publicado ? 'Publicado' : 'Borrador'}
+								</p>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								<form method="POST">
+									<input type="hidden" name="intent" value="toggle" />
+									<input type="hidden" name="id" value={ev.id} />
+									<input type="hidden" name="publicado" value={String(ev.publicado)} />
+									<button type="submit" class="rounded-pill border border-olive-700 px-4 py-2 text-small font-semibold text-olive-700">
+										{ev.publicado ? 'Ocultar' : 'Publicar'}
+									</button>
+								</form>
+								<form method="POST" onsubmit="return confirm('¿Eliminar este evento?');">
+									<input type="hidden" name="intent" value="delete" />
+									<input type="hidden" name="id" value={ev.id} />
+									<button type="submit" class="rounded-pill border border-line px-4 py-2 text-small font-semibold text-ink-soft">
+										Eliminar
+									</button>
+								</form>
+							</div>
+						</li>
+					))}
+				</ul>
+			)
+		}
+	</section>
+</AdminLayout>

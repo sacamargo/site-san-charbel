@@ -1,0 +1,114 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({ request: Astro.request, cookies: Astro.cookies });
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+	const form = await Astro.request.formData();
+	const payload = {
+		nombre: String(form.get('nombre') ?? '').trim(),
+		direccion: String(form.get('direccion') ?? '').trim(),
+		barrio: String(form.get('barrio') ?? '').trim(),
+		ciudad: String(form.get('ciudad') ?? '').trim(),
+		departamento: String(form.get('departamento') ?? '').trim(),
+		telefono_fijo: String(form.get('telefono_fijo') ?? '').trim() || null,
+		telefono_movil: String(form.get('telefono_movil') ?? '').trim() || null,
+		email: String(form.get('email') ?? '').trim() || null,
+		whatsapp: String(form.get('whatsapp') ?? '').trim() || null,
+		facebook: String(form.get('facebook') ?? '').trim() || null,
+		instagram: String(form.get('instagram') ?? '').trim() || null,
+		youtube: String(form.get('youtube') ?? '').trim() || null,
+		mapa_ficha: String(form.get('mapa_ficha') ?? '').trim() || null,
+	};
+
+	const { error } = await supabase.from('site_settings').upsert({ id: 'default', ...payload });
+	if (error) errorMsg = error.message;
+	else notice = 'Contacto guardado.';
+}
+
+const { data: settings, error: loadError } = await supabase
+	.from('site_settings')
+	.select('*')
+	.eq('id', 'default')
+	.maybeSingle();
+
+if (loadError && !errorMsg) {
+	errorMsg = loadError.message.includes('Could not find')
+		? 'Falta aplicar la migración SQL (docs/ADMIN-SETUP.md).'
+		: loadError.message;
+}
+
+const s = settings ?? {};
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout title="Contacto" email={email}>
+	<h1 class="font-display text-h2 font-bold">Contacto / ubicación</h1>
+	<p class="mt-1 text-small text-ink-soft">Se refleja en el bloque de ubicación y en el pie del sitio.</p>
+
+	{notice && <p class="mt-4 rounded-lg bg-sand-soft px-3 py-2 text-small" role="status">{notice}</p>}
+	{errorMsg && <p class="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-small text-gold-600" role="alert">{errorMsg}</p>}
+
+	<form method="POST" class="mt-8 grid gap-4 rounded-card border border-line bg-surface p-6 shadow-card sm:grid-cols-2">
+		<label class="block sm:col-span-2">
+			<span class="text-small font-semibold">Nombre</span>
+			<input name="nombre" value={s.nombre ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block sm:col-span-2">
+			<span class="text-small font-semibold">Dirección</span>
+			<input name="direccion" value={s.direccion ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Barrio</span>
+			<input name="barrio" value={s.barrio ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Ciudad</span>
+			<input name="ciudad" value={s.ciudad ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Departamento</span>
+			<input name="departamento" value={s.departamento ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Teléfono fijo</span>
+			<input name="telefono_fijo" value={s.telefono_fijo ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Móvil</span>
+			<input name="telefono_movil" value={s.telefono_movil ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Email</span>
+			<input type="email" name="email" value={s.email ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">WhatsApp (URL o número)</span>
+			<input name="whatsapp" value={s.whatsapp ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Facebook</span>
+			<input name="facebook" value={s.facebook ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">Instagram</span>
+			<input name="instagram" value={s.instagram ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block">
+			<span class="text-small font-semibold">YouTube</span>
+			<input name="youtube" value={s.youtube ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<label class="block sm:col-span-2">
+			<span class="text-small font-semibold">Enlace ficha Google Maps</span>
+			<input name="mapa_ficha" value={s.mapa_ficha ?? ''} class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+		</label>
+		<div class="sm:col-span-2">
+			<button type="submit" class="rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600">
+				Guardar
+			</button>
+		</div>
+	</form>
+</AdminLayout>

@@ -10,3 +10,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
 	readonly env: ImportMetaEnv;
 }
+
+declare namespace App {
+	interface Locals {
+		adminUser?: import('@supabase/supabase-js').User;
+		isAdmin?: boolean;
+	}
+}

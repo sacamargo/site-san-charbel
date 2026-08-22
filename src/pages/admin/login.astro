@@ -1,0 +1,109 @@
+---
+/**
+ * Login del panel. Tras autenticarse, el usuario debe existir en `profiles`
+ * con role = admin (ver docs/ADMIN-SETUP.md).
+ */
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getAdminSession } from '@/lib/admin/auth';
+import { Font } from 'astro:assets';
+import '@/styles/global.css';
+
+const { user, isAdmin } = await getAdminSession(Astro.request, Astro.cookies);
+if (user && isAdmin) {
+	return Astro.redirect('/admin');
+}
+
+let errorMsg = Astro.url.searchParams.get('error');
+
+if (Astro.request.method === 'POST') {
+	const form = await Astro.request.formData();
+	const email = String(form.get('email') ?? '').trim();
+	const password = String(form.get('password') ?? '');
+
+	const supabase = createSupabaseServerClient({
+		request: Astro.request,
+		cookies: Astro.cookies,
+	});
+
+	const { data: signIn, error } = await supabase.auth.signInWithPassword({ email, password });
+
+	if (error || !signIn.user) {
+		errorMsg = 'credenciales';
+	} else {
+		const { data: profile } = await supabase
+			.from('profiles')
+			.select('role')
+			.eq('user_id', signIn.user.id)
+			.maybeSingle();
+
+		if (profile?.role !== 'admin') {
+			await supabase.auth.signOut();
+			errorMsg = 'sin-permiso';
+		} else {
+			const next = Astro.url.searchParams.get('next') || '/admin';
+			return Astro.redirect(next.startsWith('/admin') ? next : '/admin');
+		}
+	}
+}
+
+const mensajes: Record<string, string> = {
+	credenciales: 'Correo o contraseña incorrectos.',
+	'sin-permiso':
+		'Tu usuario existe pero no tiene rol de administrador. Pide que te agreguen en la tabla profiles.',
+};
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>Entrar · Admin San Chárbel</title>
+		<Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+		<Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+	</head>
+	<body class="grid min-h-screen place-items-center bg-ivory px-4 text-ink">
+		<div class="w-full max-w-md rounded-card border border-line bg-surface p-8 shadow-card">
+			<p class="font-display text-h2 font-bold">Panel admin</p>
+			<p class="mt-1 text-small text-ink-soft">Parroquia San Chárbel</p>
+
+			{
+				errorMsg && mensajes[errorMsg] && (
+					<p class="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-small text-gold-600" role="alert">
+						{mensajes[errorMsg]}
+					</p>
+				)
+			}
+
+			<form method="POST" class="mt-6 space-y-4">
+				<label class="block">
+					<span class="text-small font-semibold">Correo</span>
+					<input
+						type="email"
+						name="email"
+						required
+						autocomplete="username"
+						class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2 text-body"
+					/>
+				</label>
+				<label class="block">
+					<span class="text-small font-semibold">Contraseña</span>
+					<input
+						type="password"
+						name="password"
+						required
+						autocomplete="current-password"
+						class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2 text-body"
+					/>
+				</label>
+				<button
+					type="submit"
+					class="inline-flex min-h-11 w-full items-center justify-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+				>
+					Entrar
+				</button>
+			</form>
+		</div>
+	</body>
+</html>

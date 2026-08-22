@@ -57,6 +57,7 @@ Tres reglas que es fácil romper sin darse cuenta:
 - `docs/DESIGN.md`: sistema de diseño y estructura de la portada.
 - `docs/SETUP.md`: configuración local y Supabase DEV.
 - `docs/PROJECT-CONTEXT.md`: alcance del producto y decisiones de MVP.
+- `docs/ADMIN-SETUP.md`: migraciones, primer usuario admin y módulos del panel.
 - `src/db/supabase.ts`: cliente Supabase para consultas en el servidor.
 - `src/lib/supabase/server.ts`: cliente Supabase para SSR y cookies (admin).
 - `src/lib/supabase/browser.ts`: cliente Supabase para el navegador.

@@ -1,0 +1,31 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { adminNav } from '@/lib/admin/nav';
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout title="Inicio" email={email}>
+	<h1 class="font-display text-h2 font-bold">Bienvenido</h1>
+	<p class="mt-2 max-w-prose text-body text-ink-soft">
+		Elige un módulo. Cada sección se edita por separado para no mezclar contenidos.
+	</p>
+
+	<ul class="mt-8 grid gap-4 sm:grid-cols-2">
+		{
+			adminNav
+				.filter((i) => i.href !== '/admin')
+				.map((item) => (
+					<li>
+						<a
+							href={item.href}
+							class="block rounded-card border border-line bg-surface p-5 shadow-card transition-shadow hover:shadow-lift"
+						>
+							<span class="font-display text-h3 font-bold">{item.label}</span>
+							<span class="mt-1 block text-small text-ink-soft">Abrir módulo →</span>
+						</a>
+					</li>
+				))
+		}
+	</ul>
+</AdminLayout>

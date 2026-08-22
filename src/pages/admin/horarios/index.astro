@@ -1,0 +1,147 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({ request: Astro.request, cookies: Astro.cookies });
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+	const form = await Astro.request.formData();
+	const intent = String(form.get('intent') ?? '');
+
+	if (intent === 'create') {
+		const tipo = String(form.get('tipo') ?? 'misa');
+		const dia = String(form.get('dia') ?? '').trim();
+		const horasRaw = String(form.get('horas') ?? '');
+		const horas = horasRaw
+			.split(',')
+			.map((h) => h.trim())
+			.filter(Boolean);
+		const nota = String(form.get('nota') ?? '').trim() || null;
+
+		if (!dia || !horas.length) {
+			errorMsg = 'Día y al menos una hora son obligatorios.';
+		} else {
+			const { error } = await supabase.from('mass_schedules').insert({
+				tipo,
+				dia,
+				dias: [],
+				horas,
+				nota,
+				activo: true,
+			});
+			if (error) errorMsg = error.message;
+			else notice = 'Horario creado.';
+		}
+	}
+
+	if (intent === 'toggle') {
+		const id = String(form.get('id') ?? '');
+		const activo = form.get('activo') === 'true';
+		const { error } = await supabase.from('mass_schedules').update({ activo: !activo }).eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = 'Estado actualizado.';
+	}
+
+	if (intent === 'delete') {
+		const id = String(form.get('id') ?? '');
+		const { error } = await supabase.from('mass_schedules').delete().eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = 'Horario eliminado.';
+	}
+}
+
+const { data: rows, error: listError } = await supabase
+	.from('mass_schedules')
+	.select('*')
+	.order('orden', { ascending: true });
+
+if (listError && !errorMsg) {
+	errorMsg = listError.message.includes('Could not find')
+		? 'Falta aplicar la migración SQL (docs/ADMIN-SETUP.md).'
+		: listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout title="Horarios" email={email}>
+	<h1 class="font-display text-h2 font-bold">Horarios</h1>
+	<p class="mt-1 text-small text-ink-soft">Misas, confesiones, despacho y otros servicios recurrentes.</p>
+
+	{notice && <p class="mt-4 rounded-lg bg-sand-soft px-3 py-2 text-small" role="status">{notice}</p>}
+	{errorMsg && <p class="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-small text-gold-600" role="alert">{errorMsg}</p>}
+
+	<section class="mt-8 rounded-card border border-line bg-surface p-6 shadow-card">
+		<h2 class="font-display text-h3 font-bold">Nuevo horario</h2>
+		<form method="POST" class="mt-4 grid gap-4 sm:grid-cols-2">
+			<input type="hidden" name="intent" value="create" />
+			<label class="block">
+				<span class="text-small font-semibold">Tipo</span>
+				<select name="tipo" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2">
+					<option value="misa">Misa</option>
+					<option value="confesion">Confesión</option>
+					<option value="despacho">Despacho</option>
+					<option value="adoracion">Adoración</option>
+					<option value="rosario">Rosario</option>
+				</select>
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Día (etiqueta)</span>
+				<input name="dia" required placeholder="Domingos" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block sm:col-span-2">
+				<span class="text-small font-semibold">Horas (separadas por coma, 24h)</span>
+				<input name="horas" required placeholder="07:00, 09:00, 11:00, 18:00" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<label class="block sm:col-span-2">
+				<span class="text-small font-semibold">Nota</span>
+				<input name="nota" class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<button type="submit" class="w-fit rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark">Crear</button>
+		</form>
+	</section>
+
+	<section class="mt-10">
+		<h2 class="font-display text-h3 font-bold">Listado</h2>
+		{
+			!rows?.length ? (
+				<p class="mt-4 text-small text-ink-soft">Sin horarios todavía.</p>
+			) : (
+				<ul class="mt-4 divide-y divide-line rounded-card border border-line bg-surface">
+					{rows.map((row) => (
+						<li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+							<div>
+								<p class="font-semibold capitalize">{row.tipo} · {row.dia}</p>
+								<p class="text-small text-ink-soft">
+									{(row.horas ?? []).join(' · ')}
+									{row.nota ? ` — ${row.nota}` : ''}
+									{' · '}
+									{row.activo ? 'Activo' : 'Oculto'}
+								</p>
+							</div>
+							<div class="flex gap-2">
+								<form method="POST">
+									<input type="hidden" name="intent" value="toggle" />
+									<input type="hidden" name="id" value={row.id} />
+									<input type="hidden" name="activo" value={String(row.activo)} />
+									<button type="submit" class="rounded-pill border border-olive-700 px-4 py-2 text-small font-semibold text-olive-700">
+										{row.activo ? 'Desactivar' : 'Activar'}
+									</button>
+								</form>
+								<form method="POST" onsubmit="return confirm('¿Eliminar?');">
+									<input type="hidden" name="intent" value="delete" />
+									<input type="hidden" name="id" value={row.id} />
+									<button type="submit" class="rounded-pill border border-line px-4 py-2 text-small font-semibold text-ink-soft">
+										Eliminar
+									</button>
+								</form>
+							</div>
+						</li>
+					))}
+				</ul>
+			)
+		}
+	</section>
+</AdminLayout>

@@ -1,34 +1,50 @@
 /**
- * Consultas de horarios — Sistema de diseño §8.1, §9.3
- *
- * Una función por consulta, tipada y ASÍNCRONA. Lo de async es el punto
- * completo del diseño: hoy leen un arreglo local, mañana leen Supabase, y el
- * único archivo que cambia es este. Páginas, componentes y tipos no se tocan.
- *
- * Los filtros de §9.3 (activo/publicado, orden) se aplican ya, para que el
- * comportamiento local coincida con lo que devolverá Supabase con RLS.
+ * Consultas de horarios — Supabase `mass_schedules` con fallback local.
  */
 import { horarios } from '@/data/horarios';
 import type { Horario } from '@/lib/types';
+import { supabase } from '@/db/supabase';
 
-/** Todos los horarios activos, en orden. */
+async function fromSupabase(): Promise<Horario[] | null> {
+	try {
+		const { data, error } = await supabase
+			.from('mass_schedules')
+			.select('*')
+			.eq('activo', true)
+			.order('orden', { ascending: true });
+
+		if (error) return null;
+		return (data ?? []).map((row) => ({
+			id: row.id,
+			tipo: row.tipo,
+			dia: row.dia,
+			dias: row.dias ?? [],
+			horas: row.horas ?? [],
+			nota: row.nota,
+			orden: row.orden,
+			activo: row.activo,
+		}));
+	} catch {
+		return null;
+	}
+}
+
 export async function getHorarios(): Promise<Horario[]> {
-  return horarios.filter((h) => h.activo).sort((a, b) => a.orden - b.orden);
+	const remote = await fromSupabase();
+	if (remote !== null) return remote;
+	return horarios.filter((h) => h.activo).sort((a, b) => a.orden - b.orden);
 }
 
-/** Los horarios de un tipo concreto. */
 export async function getHorariosPorTipo(tipo: Horario['tipo']): Promise<Horario[]> {
-  const todos = await getHorarios();
-  return todos.filter((h) => h.tipo === tipo);
+	const todos = await getHorarios();
+	return todos.filter((h) => h.tipo === tipo);
 }
 
-/** Solo las misas, que es lo que necesita el cálculo de "próxima misa". */
 export async function getMisas(): Promise<Horario[]> {
-  return getHorariosPorTipo('misa');
+	return getHorariosPorTipo('misa');
 }
 
-/** La franja del despacho parroquial, para la InfoBar y el pie. */
 export async function getDespacho(): Promise<Horario | undefined> {
-  const [despacho] = await getHorariosPorTipo('despacho');
-  return despacho;
+	const [despacho] = await getHorariosPorTipo('despacho');
+	return despacho;
 }

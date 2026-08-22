@@ -1,0 +1,74 @@
+---
+/**
+ * Layout del panel administrativo.
+ * No reutiliza Header/Footer públicos a propósito: el admin es otra superficie.
+ */
+import { Font } from 'astro:assets';
+import { adminNav } from '@/lib/admin/nav';
+import '@/styles/global.css';
+
+interface Props {
+	title: string;
+	email?: string | null;
+}
+
+const { title, email } = Astro.props;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>{title} · Admin San Chárbel</title>
+		<Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+		<Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+	</head>
+	<body class="min-h-screen bg-ivory text-ink">
+		<div class="flex min-h-screen flex-col md:flex-row">
+			<aside class="w-full shrink-0 border-b border-line bg-olive-900 text-on-dark md:w-60 md:border-r md:border-b-0">
+				<div class="px-5 py-6">
+					<p class="font-display text-lg font-bold">San Chárbel</p>
+					<p class="text-overline tracking-wide text-on-dark-muted uppercase">Panel admin</p>
+				</div>
+				<nav class="flex gap-1 overflow-x-auto px-3 pb-4 md:flex-col md:overflow-visible" aria-label="Módulos">
+					{
+						adminNav.map((item) => {
+							const active = item.exact ? path === item.href : path === item.href || path.startsWith(item.href + '/');
+							return (
+								<a
+									href={item.href}
+									class:list={[
+										'rounded-lg px-3 py-2 text-small font-semibold whitespace-nowrap transition-colors',
+										active ? 'bg-gold-500 text-olive-900' : 'text-on-dark/90 hover:bg-olive-800',
+									]}
+									aria-current={active ? 'page' : undefined}
+								>
+									{item.label}
+								</a>
+							);
+						})
+					}
+				</nav>
+				{
+					email && (
+						<form method="POST" action="/admin/logout" class="mt-auto border-t border-olive-800 px-5 py-4">
+							<p class="truncate text-overline text-on-dark-muted">{email}</p>
+							<button type="submit" class="mt-2 text-small font-semibold text-gold-300 hover:text-gold-100">
+								Cerrar sesión
+							</button>
+						</form>
+					)
+				}
+			</aside>
+
+			<main class="flex-1 px-4 py-8 md:px-8">
+				<div class="mx-auto max-w-4xl">
+					<slot />
+				</div>
+			</main>
+		</div>
+	</body>
+</html>

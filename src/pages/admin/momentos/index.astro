@@ -1,0 +1,126 @@
+---
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({ request: Astro.request, cookies: Astro.cookies });
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+	const form = await Astro.request.formData();
+	const intent = String(form.get('intent') ?? '');
+
+	if (intent === 'create') {
+		const alt = String(form.get('alt') ?? '').trim();
+		const file = form.get('imagen');
+		if (!(file instanceof File) || file.size === 0) {
+			errorMsg = 'Elige una imagen.';
+		} else {
+			const ext = file.name.split('.').pop() || 'jpg';
+			const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+			const buffer = new Uint8Array(await file.arrayBuffer());
+			const { error: upErr } = await supabase.storage.from('moments').upload(path, buffer, {
+				contentType: file.type || 'image/jpeg',
+				upsert: false,
+			});
+			if (upErr) {
+				errorMsg = upErr.message;
+			} else {
+				const { data: pub } = supabase.storage.from('moments').getPublicUrl(path);
+				const { error } = await supabase.from('gallery_moments').insert({
+					imagen_url: pub.publicUrl,
+					alt: alt || 'Momento de la parroquia',
+					publicado: true,
+				});
+				if (error) errorMsg = error.message;
+				else notice = 'Foto añadida.';
+			}
+		}
+	}
+
+	if (intent === 'toggle') {
+		const id = String(form.get('id') ?? '');
+		const publicado = form.get('publicado') === 'true';
+		const { error } = await supabase.from('gallery_moments').update({ publicado: !publicado }).eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = 'Estado actualizado.';
+	}
+
+	if (intent === 'delete') {
+		const id = String(form.get('id') ?? '');
+		const { error } = await supabase.from('gallery_moments').delete().eq('id', id);
+		if (error) errorMsg = error.message;
+		else notice = 'Foto eliminada.';
+	}
+}
+
+const { data: moments, error: listError } = await supabase
+	.from('gallery_moments')
+	.select('*')
+	.order('orden', { ascending: true });
+
+if (listError && !errorMsg) {
+	errorMsg = listError.message.includes('Could not find')
+		? 'Falta aplicar la migración SQL (docs/ADMIN-SETUP.md).'
+		: listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout title="Momentos" email={email}>
+	<h1 class="font-display text-h2 font-bold">Momentos</h1>
+	<p class="mt-1 text-small text-ink-soft">Fotos del carrusel de la portada.</p>
+
+	{notice && <p class="mt-4 rounded-lg bg-sand-soft px-3 py-2 text-small" role="status">{notice}</p>}
+	{errorMsg && <p class="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-small text-gold-600" role="alert">{errorMsg}</p>}
+
+	<section class="mt-8 rounded-card border border-line bg-surface p-6 shadow-card">
+		<h2 class="font-display text-h3 font-bold">Subir foto</h2>
+		<form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4">
+			<input type="hidden" name="intent" value="create" />
+			<label class="block">
+				<span class="text-small font-semibold">Imagen</span>
+				<input type="file" name="imagen" accept="image/*" required class="mt-1 block w-full text-small" />
+			</label>
+			<label class="block">
+				<span class="text-small font-semibold">Descripción (alt)</span>
+				<input name="alt" required class="mt-1 w-full rounded-lg border border-line bg-ivory px-3 py-2" />
+			</label>
+			<button type="submit" class="w-fit rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark">Subir</button>
+		</form>
+	</section>
+
+	<section class="mt-10">
+		<h2 class="font-display text-h3 font-bold">Listado</h2>
+		{
+			!moments?.length ? (
+				<p class="mt-4 text-small text-ink-soft">Sin fotos en Supabase todavía (la portada puede seguir mostrando las del repo).</p>
+			) : (
+				<ul class="mt-4 grid gap-4 sm:grid-cols-2">
+					{moments.map((m) => (
+						<li class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+							<img src={m.imagen_url} alt={m.alt} class="aspect-[4/3] w-full object-cover" />
+							<div class="flex items-center justify-between gap-2 p-3">
+								<p class="text-small text-ink-soft">{m.publicado ? 'Publicada' : 'Oculta'}</p>
+								<div class="flex gap-2">
+									<form method="POST">
+										<input type="hidden" name="intent" value="toggle" />
+										<input type="hidden" name="id" value={m.id} />
+										<input type="hidden" name="publicado" value={String(m.publicado)} />
+										<button type="submit" class="text-small font-semibold text-olive-700">{m.publicado ? 'Ocultar' : 'Publicar'}</button>
+									</form>
+									<form method="POST" onsubmit="return confirm('¿Eliminar?');">
+										<input type="hidden" name="intent" value="delete" />
+										<input type="hidden" name="id" value={m.id} />
+										<button type="submit" class="text-small font-semibold text-ink-soft">Eliminar</button>
+									</form>
+								</div>
+							</div>
+						</li>
+					))}
+				</ul>
+			)
+		}
+	</section>
+</AdminLayout>
