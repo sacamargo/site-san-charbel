@@ -1,0 +1,480 @@
+---
+/**
+ * /admin/solicitudes — Bandeja y gestión de los formularios de peticiones y
+ * solicitudes de servicios recibidas desde la web, con reenvío directo a Gmail.
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import Icon from '@/components/ui/Icon.astro';
+import {
+  buildGmailComposeUrl,
+  buildMailtoUrl,
+  sendRequestToGmail,
+  type ServiceRequestPayload,
+} from '@/lib/admin/gmail-notify';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'save_gmail_config') {
+    const notification_gmail = String(form.get('notification_gmail') ?? '').trim();
+    const gmail_webhook_url = String(form.get('gmail_webhook_url') ?? '').trim() || null;
+
+    if (!notification_gmail || !notification_gmail.includes('@')) {
+      errorMsg = 'Ingresa un correo Gmail válido.';
+    } else {
+      const { error } = await supabase.from('site_settings').upsert({
+        id: 'default',
+        notification_gmail,
+        gmail_webhook_url,
+      });
+      if (error) errorMsg = error.message;
+      else notice = 'Configuración de correo Gmail actualizada.';
+    }
+  }
+
+  if (intent === 'update_request') {
+    const id = String(form.get('id') ?? '');
+    const estado = String(form.get('estado') ?? 'nueva');
+    const notas_admin = String(form.get('notas_admin') ?? '').trim();
+
+    const { error } = await supabase
+      .from('service_requests')
+      .update({ estado, notas_admin })
+      .eq('id', id);
+
+    if (error) errorMsg = error.message;
+    else notice = 'Solicitud actualizada.';
+  }
+
+  if (intent === 'resend_gmail') {
+    const id = String(form.get('id') ?? '');
+    const { data: row } = await supabase
+      .from('service_requests')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    const { data: cfg } = await supabase
+      .from('site_settings')
+      .select('notification_gmail, gmail_webhook_url')
+      .eq('id', 'default')
+      .maybeSingle();
+
+    if (row) {
+      const payload: ServiceRequestPayload = {
+        id: row.id,
+        servicio_slug: row.servicio_slug,
+        servicio_nombre: row.servicio_nombre,
+        tipo_peticion: row.tipo_peticion,
+        nombre_solicitante: row.nombre_solicitante,
+        email: row.email,
+        telefono: row.telefono,
+        fecha_preferida: row.fecha_preferida,
+        mensaje: row.mensaje,
+        created_at: row.created_at,
+      };
+      const result = await sendRequestToGmail(payload, {
+        targetGmail: cfg?.notification_gmail,
+        webhookUrl: cfg?.gmail_webhook_url,
+      });
+      if (result.sent) {
+        await supabase
+          .from('service_requests')
+          .update({ notificado_gmail: true, notificado_en: new Date().toISOString() })
+          .eq('id', id);
+        notice = `Solicitud reenviada automáticamente a ${cfg?.notification_gmail || 'Gmail'}.`;
+      } else {
+        notice =
+          'Usa el botón «Abrir y enviar en Gmail» de la tarjeta para despacharla con tu sesión de Gmail, o configura el Webhook automático arriba.';
+      }
+    }
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('service_requests').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Solicitud eliminada.';
+  }
+}
+
+const estadoFiltro = Astro.url.searchParams.get('estado') || '';
+
+const { data: settings } = await supabase
+  .from('site_settings')
+  .select('notification_gmail, gmail_webhook_url, email')
+  .eq('id', 'default')
+  .maybeSingle();
+
+const targetGmail =
+  settings?.notification_gmail || settings?.email || 'info@parroquiasancharbel.org';
+const webhookUrl = settings?.gmail_webhook_url || '';
+
+let query = supabase
+  .from('service_requests')
+  .select('*')
+  .order('created_at', { ascending: false });
+
+if (estadoFiltro && ['nueva', 'en_proceso', 'atendida', 'archivada'].includes(estadoFiltro)) {
+  query = query.eq('estado', estadoFiltro);
+}
+
+const { data: requests, error: listError } = await query;
+
+if (listError && !errorMsg) {
+  errorMsg =
+    listError.message.includes('Could not find') || listError.code === '42P01'
+      ? 'La tabla service_requests aún no existe en Supabase. Aplica la migración SQL de supabase/migrations/20260822160000_admin_foundation.sql.'
+      : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+
+const etiquetasEstado: Record<string, string> = {
+  nueva: 'Nueva',
+  en_proceso: 'En proceso',
+  atendida: 'Atendida',
+  archivada: 'Archivada',
+};
+---
+
+<AdminLayout
+  title="Formularios y peticiones"
+  subtitle="Revisa las solicitudes de servicios y peticiones enviadas desde la web y reenvíalas al correo Gmail."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  {/* Configuración de reenvío a Gmail */}
+  <section
+    class="rounded-card border border-line bg-surface p-6 shadow-card"
+    aria-labelledby="t-cfg-gmail"
+  >
+    <h2 id="t-cfg-gmail" class="font-display text-h3 font-bold text-ink">
+      Correo Gmail receptor de formularios
+    </h2>
+    <p class="mt-1 text-small text-ink-soft">
+      Define a qué cuenta de Gmail se envían y reenvían las solicitudes recibidas en la página web.
+    </p>
+
+    <form method="POST" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="save_gmail_config" />
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Correo Gmail de destino *</span>
+        <input
+          type="email"
+          name="notification_gmail"
+          required
+          value={targetGmail}
+          placeholder="parroquiasancharbel@gmail.com"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-body"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">
+          URL Webhook Google Apps Script (opcional para envío automático)
+        </span>
+        <input
+          type="url"
+          name="gmail_webhook_url"
+          value={webhookUrl}
+          placeholder="https://script.google.com/macros/s/.../exec"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <div class="flex flex-wrap items-center justify-between gap-4 sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-2.5 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Guardar configuración Gmail
+        </button>
+
+        <details class="text-small text-ink-soft">
+          <summary class="cursor-pointer font-semibold text-gold-600 hover:text-olive-700">
+            ¿Cómo activar el reenvío automático gratuito desde tu propio Gmail?
+          </summary>
+          <div class="mt-2 max-w-xl rounded-card border border-line bg-ivory p-3 text-overline text-ink-soft">
+            En <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" class="text-gold-600 underline">script.google.com</a> crea un proyecto con tu cuenta de Gmail, pega:
+            <pre class="mt-1 overflow-x-auto rounded bg-surface p-2 font-mono text-ink">function doPost(e) &#123;
+  var d = JSON.parse(e.postData.contents);
+  GmailApp.sendEmail(d.to, d.subject, d.text, &#123; replyTo: d.replyTo &#125;);
+  return ContentService.createTextOutput("ok");
+&#125;</pre>
+            Publícalo como «Aplicación web → Cualquier persona» y pega la URL arriba. Además, cada
+            solicitud aquí abajo tiene botón directo para abrirse o reenviarse en Gmail con un clic.
+          </div>
+        </details>
+      </div>
+    </form>
+  </section>
+
+  {/* Filtros por estado */}
+  <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
+    <nav aria-label="Filtrar solicitudes por estado" class="flex flex-wrap gap-2">
+      {
+        [
+          { key: '', label: 'Todas' },
+          { key: 'nueva', label: 'Nuevas' },
+          { key: 'en_proceso', label: 'En proceso' },
+          { key: 'atendida', label: 'Atendidas' },
+          { key: 'archivada', label: 'Archivadas' },
+        ].map((f) => (
+          <a
+            href={f.key ? `/admin/solicitudes?estado=${f.key}` : '/admin/solicitudes'}
+            class:list={[
+              'inline-flex min-h-11 items-center rounded-pill px-4 text-small font-semibold no-underline transition-colors',
+              estadoFiltro === f.key
+                ? 'bg-olive-700 text-on-dark'
+                : 'border border-line bg-surface text-ink-soft hover:border-olive-700',
+            ]}
+          >
+            {f.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <a
+      href="/peticiones"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex min-h-11 items-center gap-1.5 text-small font-semibold text-gold-600 no-underline hover:text-olive-700"
+    >
+      <span>Ver formulario público</span>
+      <Icon name="external-link" size={15} />
+    </a>
+  </div>
+
+  {/* Listado de solicitudes */}
+  <section class="mt-6" aria-label="Listado de peticiones recibidas">
+    {
+      !requests?.length ? (
+        <div class="rounded-card border border-dashed border-line bg-surface p-10 text-center">
+          <p class="font-display text-h3 font-bold text-ink">
+            No hay solicitudes en esta bandeja todavía
+          </p>
+          <p class="mt-1 text-small text-ink-soft">
+            Cuando una persona envíe una petición desde la página web, aparecerá aquí y podrá
+            reenviarse o responderse por Gmail.
+          </p>
+        </div>
+      ) : (
+        <ul class="space-y-5" role="list">
+          {requests.map((req) => {
+            const payload: ServiceRequestPayload = {
+              id: req.id,
+              servicio_slug: req.servicio_slug,
+              servicio_nombre: req.servicio_nombre,
+              tipo_peticion: req.tipo_peticion,
+              nombre_solicitante: req.nombre_solicitante,
+              email: req.email,
+              telefono: req.telefono,
+              fecha_preferida: req.fecha_preferida,
+              mensaje: req.mensaje,
+              created_at: req.created_at,
+            };
+
+            const gmailForwardUrl = buildGmailComposeUrl(
+              targetGmail,
+              payload,
+              'forward_to_parish',
+            );
+            const gmailReplyUrl = buildGmailComposeUrl(
+              targetGmail,
+              payload,
+              'reply_to_requester',
+            );
+            const mailtoUrl = buildMailtoUrl(targetGmail, payload);
+            const telDigits = String(req.telefono || '').replace(/\D/g, '');
+            const waUrl = telDigits
+              ? `https://wa.me/${telDigits.startsWith('57') ? telDigits : `57${telDigits}`}`
+              : null;
+
+            return (
+              <li class="rounded-card border border-line bg-surface p-6 shadow-card">
+                <div class="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                        {req.servicio_nombre}
+                      </span>
+                      <span class="rounded-pill border border-line bg-surface-alt px-3 py-0.5 text-overline font-semibold text-ink-soft">
+                        {etiquetasEstado[req.estado] ?? req.estado}
+                      </span>
+                      <span class="text-overline text-muted">
+                        {new Date(req.created_at).toLocaleString('es-CO')}
+                      </span>
+                    </div>
+
+                    <h3 class="mt-2 font-display text-h3 font-bold text-ink">
+                      {req.nombre_solicitante}{' '}
+                      <span class="font-body text-small font-normal text-ink-soft">
+                        · {req.tipo_peticion}
+                      </span>
+                    </h3>
+                  </div>
+
+                  {/* Acciones rápidas de Gmail y WhatsApp */}
+                  <div class="flex flex-wrap gap-2">
+                    <a
+                      href={gmailForwardUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-olive-700 px-4 text-small font-semibold text-on-dark no-underline hover:bg-olive-600"
+                    >
+                      <Icon name="mail" size={15} />
+                      <span>Reenviar en Gmail</span>
+                    </a>
+
+                    <a
+                      href={gmailReplyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700 no-underline hover:bg-olive-700 hover:text-on-dark"
+                    >
+                      <span>Responder al solicitante</span>
+                    </a>
+
+                    {waUrl && (
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-line px-4 text-small font-semibold text-gold-600 no-underline hover:border-olive-700"
+                      >
+                        <Icon name="phone" size={15} />
+                        <span>WhatsApp</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Datos de contacto y mensaje */}
+                <div class="mt-4 grid gap-4 text-small sm:grid-cols-3">
+                  <div>
+                    <span class="font-semibold text-ink">Teléfono:</span>{' '}
+                    <a href={`tel:${telDigits}`} class="text-gold-600 hover:underline">
+                      {req.telefono}
+                    </a>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-ink">Correo:</span>{' '}
+                    <a href={`mailto:${req.email}`} class="text-gold-600 hover:underline">
+                      {req.email}
+                    </a>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-ink">Fecha preferida:</span>{' '}
+                    <span class="text-ink-soft">{req.fecha_preferida || 'No especificada'}</span>
+                  </div>
+                </div>
+
+                <div class="mt-4 rounded-card bg-surface-alt p-4 text-body whitespace-pre-line text-ink">
+                  {req.mensaje}
+                </div>
+
+                {/* Formulario de seguimiento y estado */}
+                <div class="mt-4 flex flex-wrap items-end justify-between gap-4 pt-2">
+                  <form method="POST" class="flex flex-1 flex-wrap items-end gap-3">
+                    <input type="hidden" name="intent" value="update_request" />
+                    <input type="hidden" name="id" value={req.id} />
+
+                    <label class="block">
+                      <span class="text-overline font-semibold text-ink-soft uppercase">
+                        Estado
+                      </span>
+                      <select
+                        name="estado"
+                        class="mt-1 min-h-11 rounded-card border border-line bg-ivory px-3 py-2 text-small"
+                      >
+                        <option value="nueva" selected={req.estado === 'nueva'}>Nueva</option>
+                        <option value="en_proceso" selected={req.estado === 'en_proceso'}>
+                          En proceso
+                        </option>
+                        <option value="atendida" selected={req.estado === 'atendida'}>
+                          Atendida
+                        </option>
+                        <option value="archivada" selected={req.estado === 'archivada'}>
+                          Archivada
+                        </option>
+                      </select>
+                    </label>
+
+                    <label class="block min-w-[220px] flex-1">
+                      <span class="text-overline font-semibold text-ink-soft uppercase">
+                        Notas internas del despacho
+                      </span>
+                      <input
+                        type="text"
+                        name="notas_admin"
+                        value={req.notas_admin ?? ''}
+                        placeholder="Ej. Se llamó el martes, cita confirmada…"
+                        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3 py-2 text-small"
+                      />
+                    </label>
+
+                    <button
+                      type="submit"
+                      class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-5 text-small font-semibold text-on-dark hover:bg-olive-600"
+                    >
+                      Guardar seguimiento
+                    </button>
+                  </form>
+
+                  <div class="flex items-center gap-2">
+                    <a
+                      href={mailtoUrl}
+                      class="inline-flex min-h-11 items-center rounded-pill border border-line px-3.5 text-overline font-semibold text-ink-soft no-underline hover:border-olive-700"
+                    >
+                      Abrir en cliente de correo
+                    </a>
+
+                    <form
+                      method="POST"
+                      onsubmit="return confirm('¿Eliminar esta solicitud permanentemente?');"
+                    >
+                      <input type="hidden" name="intent" value="delete" />
+                      <input type="hidden" name="id" value={req.id} />
+                      <button
+                        type="submit"
+                        class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft hover:border-error hover:text-error"
+                      >
+                        Eliminar
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

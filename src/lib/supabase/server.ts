@@ -1,38 +1,62 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import type { AstroCookies } from 'astro';
 
+/**
+ * Cliente SSR con cookies — autenticación y operaciones protegidas del
+ * dashboard (/admin y subdominio admin.*).
+ */
+export function hasSupabaseConfig(): boolean {
+  const url =
+    import.meta.env.SUPABASE_URL ?? import.meta.env.PUBLIC_SUPABASE_URL;
+  const key =
+    import.meta.env.SUPABASE_KEY ??
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return Boolean(url && key);
+}
+
 function getSupabaseConfig() {
-	const url = import.meta.env.PUBLIC_SUPABASE_URL;
-	const publishableKey = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url =
+    import.meta.env.SUPABASE_URL ?? import.meta.env.PUBLIC_SUPABASE_URL;
+  const key =
+    import.meta.env.SUPABASE_KEY ??
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-	if (!url || !publishableKey) {
-		throw new Error(
-			'Supabase is not configured. Copy .env.example to .env and add the project URL and publishable key.',
-		);
-	}
+  if (!url || !key) {
+    throw new Error(
+      'Supabase no está configurado. Copia .env.example a .env y define SUPABASE_URL y SUPABASE_KEY.',
+    );
+  }
 
-	return { url, publishableKey };
+  return { url, key };
 }
 
 export function createSupabaseServerClient({
-	request,
-	cookies,
+  request,
+  cookies,
 }: {
-	request: Request;
-	cookies: AstroCookies;
+  request: Request;
+  cookies: AstroCookies;
 }) {
-	const { url, publishableKey } = getSupabaseConfig();
+  const { url, key } = getSupabaseConfig();
+  const isHttps = new URL(request.url).protocol === 'https:';
+  const cookieDomain = import.meta.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
 
-	return createServerClient(url, publishableKey, {
-		cookies: {
-			getAll() {
-				return parseCookieHeader(request.headers.get('Cookie') ?? '');
-			},
-			setAll(cookiesToSet) {
-				cookiesToSet.forEach(({ name, value, options }) => {
-					cookies.set(name, value, options);
-				});
-			},
-		},
-	});
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return parseCookieHeader(request.headers.get('Cookie') ?? '');
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookies.set(name, value, {
+            ...options,
+            path: options?.path ?? '/',
+            sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+            secure: options?.secure ?? isHttps,
+            ...(cookieDomain ? { domain: cookieDomain } : {}),
+          });
+        });
+      },
+    },
+  });
 }

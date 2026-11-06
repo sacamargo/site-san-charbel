@@ -1,33 +1,55 @@
 /**
- * Consultas de horarios — Sistema de diseño §8.1, §9.3
- *
- * Una función por consulta, tipada y ASÍNCRONA. Lo de async es el punto
- * completo del diseño: hoy leen un arreglo local, mañana leen Supabase, y el
- * único archivo que cambia es este. Páginas, componentes y tipos no se tocan.
- *
- * Los filtros de §9.3 (activo/publicado, orden) se aplican ya, para que el
- * comportamiento local coincida con lo que devolverá Supabase con RLS.
+ * Consultas de horarios — tabla `mass_schedules` de Supabase con fallback a
+ * `src/data/horarios.ts`.
  */
 import { horarios } from '@/data/horarios';
+import { getPublicSupabaseClient } from '@/db/supabase';
 import type { Horario } from '@/lib/types';
 
-/** Todos los horarios activos, en orden. */
+async function fromSupabase(): Promise<Horario[] | null> {
+  const client = getPublicSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client
+      .from('mass_schedules')
+      .select('*')
+      .eq('activo', true)
+      .order('orden', { ascending: true });
+
+    if (error || !data) return null;
+    if (data.length === 0) return null;
+
+    return data.map((row) => ({
+      id: String(row.id),
+      tipo: row.tipo as Horario['tipo'],
+      dia: String(row.dia),
+      dias: Array.isArray(row.dias) ? row.dias : [],
+      horas: Array.isArray(row.horas) ? row.horas : [],
+      nota: row.nota ?? null,
+      orden: Number(row.orden ?? 0),
+      activo: Boolean(row.activo),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 export async function getHorarios(): Promise<Horario[]> {
+  const remote = await fromSupabase();
+  if (remote && remote.length > 0) return remote;
   return horarios.filter((h) => h.activo).sort((a, b) => a.orden - b.orden);
 }
 
-/** Los horarios de un tipo concreto. */
 export async function getHorariosPorTipo(tipo: Horario['tipo']): Promise<Horario[]> {
   const todos = await getHorarios();
   return todos.filter((h) => h.tipo === tipo);
 }
 
-/** Solo las misas, que es lo que necesita el cálculo de "próxima misa". */
 export async function getMisas(): Promise<Horario[]> {
   return getHorariosPorTipo('misa');
 }
 
-/** La franja del despacho parroquial, para la InfoBar y el pie. */
 export async function getDespacho(): Promise<Horario | undefined> {
   const [despacho] = await getHorariosPorTipo('despacho');
   return despacho;

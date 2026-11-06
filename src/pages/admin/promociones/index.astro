@@ -1,0 +1,330 @@
+---
+/**
+ * /admin/promociones — Espacio promocional para difundir las actividades,
+ * retiros, grupos y campañas de la iglesia (`parish_promotions`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'create') {
+    const titulo = String(form.get('titulo') ?? '').trim();
+    const subtitulo = String(form.get('subtitulo') ?? '').trim() || null;
+    const descripcion = String(form.get('descripcion') ?? '').trim();
+    const etiqueta = String(form.get('etiqueta') ?? 'Actividad parroquial').trim();
+    const fecha_texto = String(form.get('fecha_texto') ?? '').trim() || null;
+    const lugar = String(form.get('lugar') ?? '').trim() || null;
+    const cta_texto = String(form.get('cta_texto') ?? 'Conocer más').trim() || 'Conocer más';
+    const cta_url = String(form.get('cta_url') ?? '/peticiones').trim() || '/peticiones';
+    const imagenUrlInput = String(form.get('imagen_url') ?? '').trim() || null;
+    const destacado = form.get('destacado') === 'on';
+    const file = form.get('imagen_file');
+
+    if (!titulo) {
+      errorMsg = 'El título de la actividad promocional es obligatorio.';
+    } else {
+      let imagen_url = imagenUrlInput;
+
+      if (file instanceof File && file.size > 0) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const buffer = new Uint8Array(await file.arrayBuffer());
+        const { error: upErr } = await supabase.storage
+          .from('promotions')
+          .upload(path, buffer, {
+            contentType: file.type || 'image/jpeg',
+            upsert: false,
+          });
+        if (upErr) {
+          errorMsg = `No se pudo subir la imagen: ${upErr.message}`;
+        } else {
+          const { data: pub } = supabase.storage.from('promotions').getPublicUrl(path);
+          imagen_url = pub.publicUrl;
+        }
+      }
+
+      if (!errorMsg) {
+        const { error } = await supabase.from('parish_promotions').insert({
+          titulo,
+          subtitulo,
+          descripcion,
+          etiqueta,
+          fecha_texto,
+          lugar,
+          imagen_url,
+          cta_texto,
+          cta_url,
+          destacado,
+          activo: true,
+        });
+        if (error) errorMsg = error.message;
+        else notice = 'Actividad promocional publicada.';
+      }
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const activo = form.get('activo') === 'true';
+    const { error } = await supabase
+      .from('parish_promotions')
+      .update({ activo: !activo })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Estado actualizado.';
+  }
+
+  if (intent === 'toggle_destacado') {
+    const id = String(form.get('id') ?? '');
+    const destacado = form.get('destacado') === 'true';
+    const { error } = await supabase
+      .from('parish_promotions')
+      .update({ destacado: !destacado })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Prioridad actualizada.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('parish_promotions').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Actividad promocional eliminada.';
+  }
+}
+
+const { data: rows, error: listError } = await supabase
+  .from('parish_promotions')
+  .select('*')
+  .order('destacado', { ascending: false })
+  .order('orden', { ascending: true });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Espacio promocional de la iglesia"
+  subtitle="Promociona retiros, jornadas de oración, grupos parroquiales, campañas y actividades especiales."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Nueva actividad promocional</h2>
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Título *</span>
+        <input
+          name="titulo"
+          required
+          placeholder="Ej. Gran Retiro Parroquial de Emaús"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Etiqueta / Categoría</span>
+        <input
+          name="etiqueta"
+          value="Actividad parroquial"
+          placeholder="Ej. Retiro, Campaña, Pastoral, Formación"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Subtítulo</span>
+        <input
+          name="subtitulo"
+          placeholder="Frase complementaria o lema de la actividad"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Descripción *</span>
+        <textarea
+          name="descripcion"
+          rows="3"
+          required
+          placeholder="Explica en qué consiste la actividad, a quiénes invita y cómo participar…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Fecha o frecuencia</span>
+        <input
+          name="fecha_texto"
+          placeholder="Ej. Todos los jueves · 6:30 p. m."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Lugar</span>
+        <input
+          name="lugar"
+          placeholder="Ej. Salón parroquial / Templo"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Texto del botón</span>
+        <input
+          name="cta_texto"
+          value="Inscribirme / Solicitar información"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Enlace del botón</span>
+        <input
+          name="cta_url"
+          value="/peticiones#formulario-peticion"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Subir imagen promocional (opcional)</span>
+        <input type="file" name="imagen_file" accept="image/*" class="mt-1 block w-full text-small" />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">O URL de imagen</span>
+        <input
+          type="url"
+          name="imagen_url"
+          placeholder="https://..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <label class="flex items-center gap-2.5 sm:col-span-2">
+        <input type="checkbox" name="destacado" class="size-5 accent-olive-700" />
+        <span class="text-small font-semibold text-ink">
+          Mostrar como actividad principal destacada en la banda grande
+        </span>
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Publicar promoción
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Actividades promocionales ({rows?.length ?? 0})
+    </h2>
+    {
+      !rows?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          No hay promociones personalizadas aún; el sitio muestra las actividades iniciales por
+          defecto.
+        </p>
+      ) : (
+        <ul class="mt-4 space-y-3" role="list">
+          {rows.map((row) => (
+            <li class="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                    {row.etiqueta}
+                  </span>
+                  {row.destacado && (
+                    <span class="rounded-pill bg-olive-700 px-3 py-0.5 text-overline font-semibold text-on-dark">
+                      Destacada principal
+                    </span>
+                  )}
+                  <span class="text-overline text-muted">
+                    {row.activo ? 'Activa' : 'Oculta'}
+                  </span>
+                </div>
+                <p class="mt-1 font-display text-h3 font-bold text-ink">{row.titulo}</p>
+                <p class="mt-1 text-small text-ink-soft">{row.descripcion}</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle_destacado" />
+                  <input type="hidden" name="id" value={row.id} />
+                  <input type="hidden" name="destacado" value={String(row.destacado)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-gold-600 hover:border-olive-700"
+                  >
+                    {row.destacado ? 'Quitar destacado' : 'Destacar'}
+                  </button>
+                </form>
+
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle" />
+                  <input type="hidden" name="id" value={row.id} />
+                  <input type="hidden" name="activo" value={String(row.activo)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                  >
+                    {row.activo ? 'Ocultar' : 'Activar'}
+                  </button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('¿Eliminar esta promoción?');">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={row.id} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                  >
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

@@ -31,30 +31,49 @@
  */
 import { Image } from 'astro:assets';
 import Button from '@/components/ui/Button.astro';
+import type { HeroSlide } from '@/lib/queries/banner';
 import heroInicio from '@/assets/hero-inicio.png';
 
 interface Props {
   eyebrow: string;
   titulo: string;
+  slides?: HeroSlide[];
   class?: string;
 }
 
-const { eyebrow, titulo, class: className } = Astro.props;
+const { eyebrow, titulo, slides = [], class: className } = Astro.props;
+const slidePrincipal = slides[0] ?? null;
+const eyebrowFinal = slidePrincipal?.eyebrow || eyebrow;
+const tituloFinal = slidePrincipal?.titulo || titulo;
+const ctaPrincipalTexto = slidePrincipal?.cta_texto || 'Conoce nuestra comunidad';
+const ctaPrincipalHref = slidePrincipal?.enlace || '/san-charbel';
 ---
 
 <section
   class:list={['relative isolate overflow-hidden bg-olive-900', className]}
   aria-label="Presentación"
 >
-  <Image
-    src={heroInicio}
-    alt=""
-    widths={[640, 960, 1280, 1536]}
-    sizes="100vw"
-    loading="eager"
-    fetchpriority="high"
-    class="absolute inset-0 -z-10 size-full object-cover object-[center_20%]"
-  />
+  {
+    slidePrincipal ? (
+      <img
+        src={slidePrincipal.imagen_url}
+        alt=""
+        fetchpriority="high"
+        data-hero-img
+        class="absolute inset-0 -z-10 size-full object-cover object-[center_20%]"
+      />
+    ) : (
+      <Image
+        src={heroInicio}
+        alt=""
+        widths={[640, 960, 1280, 1536]}
+        sizes="100vw"
+        loading="eager"
+        fetchpriority="high"
+        class="absolute inset-0 -z-10 size-full object-cover object-[center_20%]"
+      />
+    )
+  }
 
   {/* Velo. Móvil: vertical. Escritorio: horizontal, denso a la izquierda. */}
   <div
@@ -65,14 +84,14 @@ const { eyebrow, titulo, class: className } = Astro.props;
 
   <div class="mx-auto max-w-(--container-page) px-4 py-20 md:px-6 lg:py-32">
     <div class="max-w-md">
-      <p class="text-overline font-semibold tracking-[0.16em] text-gold-100 uppercase">
-        {eyebrow}
+      <p data-hero-eyebrow class="text-overline font-semibold tracking-[0.16em] text-gold-100 uppercase">
+        {eyebrowFinal}
       </p>
 
-      <h1 class="mt-4 font-display text-display font-bold text-on-dark">{titulo}</h1>
+      <h1 data-hero-titulo class="mt-4 font-display text-display font-bold text-on-dark">{tituloFinal}</h1>
 
-      <p class="mt-5 text-body text-on-dark/90">
-        <slot />
+      <p data-hero-subtitulo class="mt-5 text-body text-on-dark/90">
+        {slidePrincipal?.subtitulo ? slidePrincipal.subtitulo : <slot />}
       </p>
 
       {/* Separador ornamental con la cruz. Decorativo. */}
@@ -85,9 +104,60 @@ const { eyebrow, titulo, class: className } = Astro.props;
       </div>
 
       <div class="mt-8 flex flex-wrap gap-4 max-[479px]:flex-col max-[479px]:items-stretch">
-        <Button variant="primary-on-dark" href="/san-charbel" iconEnd="arrow-right">Conoce nuestra comunidad</Button>
+        <Button variant="primary-on-dark" href={ctaPrincipalHref} iconEnd="arrow-right">
+          {ctaPrincipalTexto}
+        </Button>
         <Button variant="outline-light" href="/agenda" icon="clock">Ver horarios de misas</Button>
       </div>
+
+      {
+        slides.length > 1 && (
+          <div class="mt-8 flex flex-wrap items-center gap-2" role="group" aria-label="Banners destacados">
+            {slides.map((s, idx) => (
+              <button
+                type="button"
+                data-hero-slide={JSON.stringify({
+                  imagen_url: s.imagen_url,
+                  eyebrow: s.eyebrow || eyebrow,
+                  titulo: s.titulo || titulo,
+                  subtitulo: s.subtitulo || '',
+                })}
+                aria-current={idx === 0 ? 'true' : 'false'}
+                class="inline-flex min-h-11 items-center gap-2 rounded-pill border border-on-dark/40 bg-olive-900/60 px-4 text-overline font-semibold text-on-dark transition-colors hover:border-gold-300 aria-[current=true]:border-gold-500 aria-[current=true]:bg-gold-500 aria-[current=true]:text-olive-900"
+              >
+                <span>{s.titulo || `Banner ${idx + 1}`}</span>
+              </button>
+            ))}
+          </div>
+        )
+      }
     </div>
   </div>
+
+  {
+    slides.length > 1 && (
+      <script>
+        const buttons = document.querySelectorAll<HTMLButtonElement>('[data-hero-slide]');
+        const img = document.querySelector<HTMLImageElement>('[data-hero-img]');
+        const eyebrowEl = document.querySelector<HTMLElement>('[data-hero-eyebrow]');
+        const tituloEl = document.querySelector<HTMLElement>('[data-hero-titulo]');
+        const subtituloEl = document.querySelector<HTMLElement>('[data-hero-subtitulo]');
+
+        buttons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            try {
+              const data = JSON.parse(btn.dataset.heroSlide || '{}');
+              if (img && data.imagen_url) img.src = data.imagen_url;
+              if (eyebrowEl && data.eyebrow) eyebrowEl.textContent = data.eyebrow;
+              if (tituloEl && data.titulo) tituloEl.textContent = data.titulo;
+              if (subtituloEl && data.subtitulo) subtituloEl.textContent = data.subtitulo;
+              buttons.forEach((b) => b.setAttribute('aria-current', b === btn ? 'true' : 'false'));
+            } catch {
+              // Ignorar JSON inválido
+            }
+          });
+        });
+      </script>
+    )
+  }
 </section>

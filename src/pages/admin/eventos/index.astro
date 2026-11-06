@@ -1,0 +1,376 @@
+---
+/**
+ * /admin/eventos — Gestión del calendario frontal y próximos eventos, con
+ * subida directa de flyer a Supabase Storage (`event-flyers`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'create') {
+    const titulo = String(form.get('titulo') ?? '').trim();
+    const resumen = String(form.get('resumen') ?? '').trim();
+    const contenido = String(form.get('contenido') ?? '').trim();
+    const fecha_inicio = String(form.get('fecha_inicio') ?? '');
+    const fecha_fin = String(form.get('fecha_fin') ?? '') || null;
+    const hora = String(form.get('hora') ?? '') || null;
+    const lugar = String(form.get('lugar') ?? '').trim() || null;
+    const categoria = String(form.get('categoria') ?? '').trim() || null;
+    const dirigido_a = String(form.get('dirigido_a') ?? '').trim() || null;
+    const cita = String(form.get('cita') ?? '').trim() || null;
+    const cita_referencia = String(form.get('cita_referencia') ?? '').trim() || null;
+    const flyerUrlInput = String(form.get('flyer_url') ?? '').trim() || null;
+    const publicado = form.get('publicado') === 'on';
+    const file = form.get('flyer_file');
+
+    if (!titulo || !fecha_inicio) {
+      errorMsg = 'El título y la fecha de inicio son obligatorios.';
+    } else {
+      let flyer_url = flyerUrlInput;
+
+      if (file instanceof File && file.size > 0) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const buffer = new Uint8Array(await file.arrayBuffer());
+        const { error: upErr } = await supabase.storage
+          .from('event-flyers')
+          .upload(path, buffer, {
+            contentType: file.type || 'image/jpeg',
+            upsert: false,
+          });
+
+        if (upErr) {
+          errorMsg = `No se pudo subir el flyer: ${upErr.message}`;
+        } else {
+          const { data: pub } = supabase.storage.from('event-flyers').getPublicUrl(path);
+          flyer_url = pub.publicUrl;
+        }
+      }
+
+      if (!errorMsg) {
+        const slug = `${slugify(titulo)}-${fecha_inicio}`;
+        const { error } = await supabase.from('events').insert({
+          slug,
+          titulo,
+          resumen,
+          contenido,
+          fecha_inicio,
+          fecha_fin,
+          hora,
+          lugar,
+          categoria,
+          dirigido_a,
+          cita,
+          cita_referencia,
+          flyer_url,
+          publicado,
+        });
+        if (error) errorMsg = error.message;
+        else notice = 'Evento creado y agregado al calendario.';
+      }
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const publicado = form.get('publicado') === 'true';
+    const { error } = await supabase
+      .from('events')
+      .update({ publicado: !publicado })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = publicado ? 'Evento ocultado del sitio.' : 'Evento publicado en el sitio.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('events').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Evento eliminado.';
+  }
+}
+
+const { data: events, error: listError } = await supabase
+  .from('events')
+  .select('*')
+  .order('fecha_inicio', { ascending: true });
+
+if (listError && !errorMsg) {
+  errorMsg =
+    listError.message.includes('Could not find') || listError.code === '42P01'
+      ? 'La tabla events aún no existe. Aplica la migración SQL en Supabase.'
+      : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Calendario y eventos"
+  subtitle="Controla el calendario mensual de /agenda y el carrusel de próximos eventos de la portada."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section
+    class="rounded-card border border-line bg-surface p-6 shadow-card"
+    aria-labelledby="nuevo-evento"
+  >
+    <h2 id="nuevo-evento" class="font-display text-h3 font-bold text-ink">
+      Programar nuevo evento o celebración
+    </h2>
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Título del evento *</span>
+        <input
+          name="titulo"
+          required
+          placeholder="Ej. Fiesta Patronal de San Chárbel"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Resumen corto (visible en tarjetas)</span>
+        <textarea
+          name="resumen"
+          rows="2"
+          placeholder="Breve invitación para la comunidad…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">
+          Información detallada (visible al abrir el evento)
+        </span>
+        <textarea
+          name="contenido"
+          rows="3"
+          placeholder="Programa, indicaciones, contacto o detalles adicionales…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Fecha de inicio *</span>
+        <input
+          type="date"
+          name="fecha_inicio"
+          required
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Fecha de fin (si dura varios días)</span>
+        <input
+          type="date"
+          name="fecha_fin"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Hora (opcional)</span>
+        <input
+          type="time"
+          name="hora"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Lugar</span>
+        <input
+          name="lugar"
+          placeholder="Templo parroquial"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Categoría</span>
+        <input
+          name="categoria"
+          placeholder="Ej. Liturgia, Retiro, Oración, Devoción"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Dirigido a</span>
+        <input
+          name="dirigido_a"
+          placeholder="Ej. Toda la comunidad, Jóvenes, Familias"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Subir imagen / Flyer del evento</span>
+        <input
+          type="file"
+          name="flyer_file"
+          accept="image/*"
+          class="mt-1 block w-full text-small"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">O pegar URL externa de imagen</span>
+        <input
+          type="url"
+          name="flyer_url"
+          placeholder="https://..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Cita bíblica o lema (opcional)</span>
+        <input
+          name="cita"
+          placeholder="Ej. El que beba del agua que yo le daré…"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Referencia de la cita</span>
+        <input
+          name="cita_referencia"
+          placeholder="Ej. Juan 4, 14"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="flex items-center gap-2.5 sm:col-span-2">
+        <input type="checkbox" name="publicado" checked class="size-5 accent-olive-700" />
+        <span class="text-small font-semibold text-ink">
+          Publicar inmediatamente en la portada y en el calendario de /agenda
+        </span>
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center justify-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Guardar evento en el calendario
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-10" aria-labelledby="lista-eventos">
+    <h2 id="lista-eventos" class="font-display text-h3 font-bold text-ink">
+      Eventos registrados ({events?.length ?? 0})
+    </h2>
+    {
+      !events?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          Aún no hay eventos en la tabla de Supabase. Mientras esté vacía, el sitio muestra los
+          eventos de respaldo del repositorio.
+        </p>
+      ) : (
+        <ul class="mt-4 space-y-3" role="list">
+          {events.map((ev) => (
+            <li class="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-center gap-4">
+                {ev.flyer_url && (
+                  <img
+                    src={ev.flyer_url}
+                    alt=""
+                    class="size-16 shrink-0 rounded-lg border border-line object-cover"
+                  />
+                )}
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="font-display text-h3 font-bold text-ink">{ev.titulo}</p>
+                    <span
+                      class:list={[
+                        'rounded-pill px-2.5 py-0.5 text-overline font-semibold',
+                        ev.publicado
+                          ? 'bg-gold-100 text-gold-600'
+                          : 'bg-surface-alt text-muted',
+                      ]}
+                    >
+                      {ev.publicado ? 'Publicado' : 'Oculto'}
+                    </span>
+                  </div>
+                  <p class="mt-1 text-small text-ink-soft">
+                    {ev.fecha_inicio}
+                    {ev.fecha_fin ? ` → ${ev.fecha_fin}` : ''}
+                    {ev.hora ? ` · ${String(ev.hora).slice(0, 5)}` : ''}
+                    {ev.lugar ? ` · ${ev.lugar}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle" />
+                  <input type="hidden" name="id" value={ev.id} />
+                  <input type="hidden" name="publicado" value={String(ev.publicado)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700 hover:bg-olive-700 hover:text-on-dark"
+                  >
+                    {ev.publicado ? 'Ocultar' : 'Publicar'}
+                  </button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('¿Eliminar este evento?');">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={ev.id} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft hover:border-error hover:text-error"
+                  >
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

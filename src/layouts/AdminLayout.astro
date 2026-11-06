@@ -1,0 +1,163 @@
+---
+/**
+ * Layout principal del Dashboard de Gestión de la Parroquia San Chárbel.
+ * Preparado para funcionar tanto en ruta `/admin/*` como en un subdominio
+ * dedicado (`admin.parroquiasancharbel.org`).
+ */
+import { Font } from 'astro:assets';
+import AdminBrand from '@/components/admin/AdminBrand.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { adminNav } from '@/lib/admin/nav';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  subtitle?: string;
+  email?: string | null;
+}
+
+const { title, subtitle, email = Astro.locals.adminUser?.email ?? null } = Astro.props;
+const path = Astro.url.pathname;
+
+const grupos = [
+  { id: 'principal', titulo: 'Principal' },
+  { id: 'contenido', titulo: 'Contenido de la página' },
+  { id: 'comunidad', titulo: 'Comunidad y descargas' },
+  { id: 'configuracion', titulo: 'Ajustes del sitio' },
+] as const;
+
+const sitePublicUrl = import.meta.env.PUBLIC_SITE_URL?.trim() || '/';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>{title} · Dashboard San Chárbel</title>
+    <Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+    <Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+  </head>
+  <body class="min-h-screen bg-ivory text-ink">
+    <div class="flex min-h-screen flex-col lg:flex-row">
+      {/* Barra lateral */}
+      <aside class="flex w-full shrink-0 flex-col border-b border-line bg-olive-900 text-on-dark lg:w-72 lg:border-r lg:border-b-0">
+        <div class="flex items-center justify-between border-b border-olive-800 px-5 py-5">
+          <a href="/admin" class="no-underline">
+            <AdminBrand size="sm" tone="light" />
+          </a>
+
+          <a
+            href={sitePublicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-on-dark/25 px-3 text-overline font-semibold text-gold-300 no-underline transition-colors hover:border-gold-300 lg:hidden"
+          >
+            <span>Ver web</span>
+            <Icon name="external-link" size={13} />
+          </a>
+        </div>
+
+        {/* Navegación móvil horizontal / escritorio vertical por grupos */}
+        <nav
+          class="flex gap-2 overflow-x-auto px-4 py-3 lg:flex-1 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:px-4 lg:py-5"
+          aria-label="Módulos de administración"
+        >
+          {
+            grupos.map((grupo) => {
+              const items = adminNav.filter((i) => i.group === grupo.id);
+              return (
+                <div class="flex shrink-0 gap-1.5 lg:flex-col lg:gap-1">
+                  <p class="hidden px-3 pb-1 text-overline font-semibold tracking-[0.14em] text-on-dark-muted uppercase lg:block">
+                    {grupo.titulo}
+                  </p>
+                  {items.map((item) => {
+                    const active = item.exact
+                      ? path === item.href
+                      : path === item.href || path.startsWith(item.href + '/');
+                    return (
+                      <a
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        class:list={[
+                          'flex min-h-11 items-center gap-3 rounded-card px-3.5 py-2 text-small font-semibold whitespace-nowrap no-underline transition-colors',
+                          active
+                            ? 'bg-gold-500 text-olive-900 shadow-card'
+                            : 'text-on-dark/90 hover:bg-olive-800 hover:text-on-dark',
+                        ]}
+                      >
+                        <Icon name={item.icon} size={18} />
+                        <span>{item.label}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              );
+            })
+          }
+        </nav>
+
+        {/* Pie de barra lateral */}
+        <div class="border-t border-olive-800 p-4">
+          <a
+            href={sitePublicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mb-3 hidden min-h-11 w-full items-center justify-center gap-2 rounded-pill border border-on-dark/25 px-4 text-small font-semibold text-gold-300 no-underline transition-colors hover:border-gold-300 hover:bg-olive-800 lg:inline-flex"
+          >
+            <span>Abrir página pública</span>
+            <Icon name="external-link" size={15} />
+          </a>
+
+          <div class="flex items-center justify-between gap-3 rounded-card bg-olive-800 px-3.5 py-3">
+            <div class="min-w-0">
+              <p class="truncate text-small font-semibold text-on-dark">
+                {email || 'Administrador activo'}
+              </p>
+              <p class="text-overline text-gold-300">Control total del sitio</p>
+            </div>
+
+            <form method="POST" action="/admin/logout">
+              <button
+                type="submit"
+                class="inline-flex min-h-11 items-center rounded-pill border border-on-dark/25 px-3.5 text-overline font-semibold text-on-dark transition-colors hover:border-gold-300 hover:text-gold-300"
+              >
+                Salir
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      {/* Área principal */}
+      <div class="flex flex-1 flex-col">
+        <header class="border-b border-line bg-surface px-4 py-5 md:px-8">
+          <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 class="font-display text-h2 font-bold text-ink">{title}</h1>
+              {subtitle && <p class="mt-1 text-small text-ink-soft">{subtitle}</p>}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <a
+                href="/admin/solicitudes"
+                class="inline-flex min-h-11 items-center gap-2 rounded-pill border border-line bg-surface-alt px-4 text-small font-semibold text-gold-600 no-underline transition-colors hover:border-olive-700 hover:text-olive-700"
+              >
+                <Icon name="mail" size={16} />
+                <span>Bandeja de formularios</span>
+              </a>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 px-4 py-8 md:px-8">
+          <div class="mx-auto max-w-5xl">
+            <slot />
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

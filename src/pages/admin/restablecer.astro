@@ -1,0 +1,171 @@
+---
+/**
+ * /admin/restablecer — Definición de nueva contraseña tras abrir el enlace
+ * enviado al correo electrónico.
+ *
+ * Soporta tanto el intercambio PKCE en servidor (`?code=...`) como tokens en
+ * fragmento hash (`#access_token=...&type=recovery`) mediante el cliente de
+ * navegador de Supabase.
+ */
+import { Font } from 'astro:assets';
+import AdminBrand from '@/components/admin/AdminBrand.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { validateStrongPassword } from '@/lib/admin/security';
+import { createSupabaseServerClient, hasSupabaseConfig } from '@/lib/supabase/server';
+import '@/styles/global.css';
+
+let errorMsg: string | null = null;
+const code = Astro.url.searchParams.get('code');
+
+if (hasSupabaseConfig() && code && Astro.request.method === 'GET') {
+  try {
+    const supabase = createSupabaseServerClient({
+      request: Astro.request,
+      cookies: Astro.cookies,
+    });
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      errorMsg = 'El enlace de recuperación expiró o ya fue utilizado. Solicita uno nuevo.';
+    }
+  } catch {
+    errorMsg = 'No se pudo validar el código de recuperación.';
+  }
+}
+
+if (Astro.request.method === 'POST' && hasSupabaseConfig()) {
+  const form = await Astro.request.formData();
+  const password = String(form.get('password') ?? '');
+  const confirm = String(form.get('confirm_password') ?? '');
+
+  const strengthError = validateStrongPassword(password);
+  if (strengthError) {
+    errorMsg = strengthError;
+  } else if (password !== confirm) {
+    errorMsg = 'Las dos contraseñas no coinciden.';
+  } else {
+    const supabase = createSupabaseServerClient({
+      request: Astro.request,
+      cookies: Astro.cookies,
+    });
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      errorMsg =
+        'No se pudo actualizar la contraseña. Asegúrate de haber abierto el enlace reciente desde tu correo.';
+    } else {
+      return Astro.redirect('/admin/login?restablecida=1', 302);
+    }
+  }
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>Nueva contraseña · Dashboard San Chárbel</title>
+    <Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+    <Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+  </head>
+  <body class="min-h-screen bg-olive-900 text-ink">
+    <main class="grid min-h-screen place-items-center px-4 py-12">
+      <div class="w-full max-w-md rounded-band border border-gold-500/30 bg-ivory p-8 shadow-lift md:p-10">
+        <AdminBrand size="lg" tone="dark" />
+
+        <h1 class="mt-4 text-center font-display text-h3 font-bold text-ink">
+          Definir nueva contraseña
+        </h1>
+        <p class="mt-2 text-center text-small text-ink-soft">
+          Elige una contraseña segura de al menos 10 caracteres que combine mayúsculas, minúsculas y
+          números.
+        </p>
+
+        {
+          errorMsg && (
+            <div
+              class="mt-5 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600"
+              role="alert"
+            >
+              {errorMsg}
+            </div>
+          )
+        }
+
+        <div
+          data-reset-alert
+          hidden
+          class="mt-5 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600"
+          role="alert"
+        >
+        </div>
+
+        <form method="POST" data-reset-form class="mt-6 space-y-5">
+          <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ''} />
+
+          <label class="block">
+            <span class="text-small font-semibold text-ink">Nueva contraseña *</span>
+            <input
+              type="password"
+              name="password"
+              required
+              minlength="10"
+              autocomplete="new-password"
+              class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-surface px-3.5 py-2.5 text-body text-ink"
+            />
+          </label>
+
+          <label class="block">
+            <span class="text-small font-semibold text-ink">Confirmar nueva contraseña *</span>
+            <input
+              type="password"
+              name="confirm_password"
+              required
+              minlength="10"
+              autocomplete="new-password"
+              class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-surface px-3.5 py-2.5 text-body text-ink"
+            />
+          </label>
+
+          <button
+            type="submit"
+            class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark transition-colors hover:bg-olive-600"
+          >
+            <span>Guardar nueva contraseña</span>
+            <Icon name="arrow-right" size={16} />
+          </button>
+        </form>
+
+        <div class="mt-6 border-t border-line pt-5 text-center">
+          <a
+            href="/admin/login"
+            class="inline-flex min-h-11 items-center gap-1.5 text-small font-semibold text-gold-600 no-underline hover:text-olive-700"
+          >
+            <Icon name="chevron-left" size={16} />
+            <span>Volver al acceso</span>
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+
+      // Si el enlace de Supabase llega con #access_token=... en el hash, el
+      // cliente de navegador sincroniza la sesión en cookies automáticamente.
+      if (window.location.hash.includes('access_token')) {
+        try {
+          const supabase = createSupabaseBrowserClient();
+          supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+              history.replaceState(null, '', window.location.pathname);
+            }
+          });
+        } catch {
+          // Ignorar si faltan variables en entorno de prueba
+        }
+      }
+    </script>
+  </body>
+</html>

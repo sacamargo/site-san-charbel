@@ -1,0 +1,155 @@
+---
+/**
+ * /servicios — Índice de sacramentos, servicios pastorales, horarios completos
+ * y formulario de solicitudes.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ServiceRequestForm from '@/components/blocks/ServiceRequestForm.astro';
+import ArchivosBlock from '@/components/blocks/ArchivosBlock.astro';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import SectionTitle from '@/components/ui/SectionTitle.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { formatHoras } from '@/lib/format';
+import { getHorarios } from '@/lib/queries/horarios';
+import { getServicios } from '@/lib/queries/servicios';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+const servicios = await getServicios();
+const todosHorarios = await getHorarios();
+const parroquia = await getSiteSettings();
+
+const misas = todosHorarios.filter((h) => h.tipo === 'misa');
+const otrosHorarios = todosHorarios.filter((h) => h.tipo !== 'misa');
+
+const etiquetaTipo: Record<string, string> = {
+  confesion: 'Confesiones',
+  despacho: 'Despacho parroquial',
+  adoracion: 'Adoración eucarística',
+  rosario: 'Santo Rosario',
+};
+---
+
+<BaseLayout
+  title="Servicios y sacramentos"
+  description={`Sacramentos, horarios de misas, confesiones, despacho parroquial y solicitudes en línea de la ${parroquia.nombre}.`}
+>
+  {/* 1 — Encabezado */}
+  <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-hero-servicios">
+    <Watermark class="-right-12 -bottom-20 w-36 rotate-[125deg] text-olive-700 opacity-10" />
+    <div class="mx-auto max-w-(--container-page) px-4 py-16 md:px-6 md:py-22">
+      <div class="max-w-2xl">
+        <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+          Vida sacramental y pastoral
+        </p>
+        <h1 id="t-hero-servicios" class="mt-2 font-display text-display font-bold text-ink">
+          Servicios de la parroquia
+        </h1>
+        <p class="mt-4 text-body text-ink-soft">
+          Acompañamos cada etapa de la vida cristiana de nuestras familias. Consulta la orientación
+          para cada sacramento, revisa los horarios de atención o envía tu solicitud al despacho.
+        </p>
+        <div class="mt-7 flex flex-wrap gap-4">
+          <Button href="#formulario-peticion" icon="mail">
+            Solicitar un servicio o petición
+          </Button>
+          <Button variant="outline" href="#horarios" icon="clock">
+            Ver horarios de atención
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* 2 — Sacramentos y servicios */}
+  <section
+    class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20"
+    aria-labelledby="t-lista-servicios"
+  >
+    <SectionTitle id="t-lista-servicios">Sacramentos y atención espiritual</SectionTitle>
+
+    <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
+      {
+        servicios.map((servicio) => (
+          <li class="flex">
+            <article class="group relative flex flex-1 flex-col gap-3 rounded-card border border-line bg-surface p-6 shadow-card transition-shadow hover:shadow-lift">
+              <span class="grid size-12 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                <Icon name={servicio.icono} size={24} />
+              </span>
+
+              <h3 class="font-display text-h3 font-bold text-ink">{servicio.nombre}</h3>
+              <p class="text-small text-ink-soft">{servicio.descripcion}</p>
+              <p class="text-small text-muted">{servicio.atencion}</p>
+
+              <span class="mt-auto pt-3 text-small font-semibold text-gold-600 group-hover:text-olive-700">
+                <a
+                  href={servicio.href}
+                  class="no-underline after:absolute after:inset-0 after:z-10 after:content-['']"
+                >
+                  Ver orientación y solicitar →
+                </a>
+              </span>
+            </article>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  {/* 3 — Horarios completos (Misas, Confesiones y Despacho) */}
+  <section id="horarios" class="bg-surface-alt" aria-labelledby="t-horarios-completos">
+    <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+      <SectionTitle id="t-horarios-completos">Horarios de la parroquia</SectionTitle>
+
+      <div class="grid gap-8 lg:grid-cols-2">
+        <div>
+          <h3 class="font-display text-h3 font-bold text-ink">Santa Misa</h3>
+          <ul class="mt-4 flex flex-col gap-3" role="list">
+            {
+              misas.map((misa) => (
+                <li class="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface p-5 shadow-card">
+                  <span class="font-display text-h3 font-bold text-ink">{misa.dia}</span>
+                  <span class="text-small font-semibold text-ink-soft">
+                    {formatHoras(misa.horas, ' · ')}
+                  </span>
+                  {misa.nota && <p class="w-full text-small text-muted">{misa.nota}</p>}
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-display text-h3 font-bold text-ink">
+            Confesiones, despacho y otros servicios
+          </h3>
+          <ul class="mt-4 flex flex-col gap-3" role="list">
+            {
+              otrosHorarios.map((h) => (
+                <li class="flex flex-col gap-1 rounded-card border border-line bg-surface p-5 shadow-card">
+                  <div class="flex flex-wrap items-center justify-between gap-4">
+                    <span class="font-display text-h3 font-bold text-ink">
+                      {etiquetaTipo[h.tipo] ?? h.tipo} · {h.dia}
+                    </span>
+                    <span class="text-small font-semibold text-gold-600">
+                      {formatHoras(h.horas, ' · ')}
+                    </span>
+                  </div>
+                  {h.nota && <p class="text-small text-ink-soft">{h.nota}</p>}
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* 4 — Documentos descargables */}
+  <ArchivosBlock />
+
+  {/* 5 — Formulario de solicitudes */}
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    <ServiceRequestForm returnTo="/servicios" />
+  </div>
+</BaseLayout>

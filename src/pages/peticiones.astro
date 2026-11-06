@@ -1,0 +1,79 @@
+---
+/**
+ * /peticiones — Apartado dedicado de formularios para escribir peticiones,
+ * intenciones y solicitudes de servicios a la parroquia.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ServiceRequestForm from '@/components/blocks/ServiceRequestForm.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+const parroquia = await getSiteSettings();
+const servicioQuery = Astro.url.searchParams.get('servicio') || '';
+---
+
+<BaseLayout
+  title="Peticiones y solicitudes"
+  description={`Envía tus peticiones de oración, intenciones de misa y solicitudes de sacramentos a la ${parroquia.nombre}.`}
+>
+  <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-hero-peticiones">
+    <Watermark class="-right-12 -bottom-20 w-36 rotate-[125deg] text-olive-700 opacity-10" />
+    <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+      <div class="max-w-2xl">
+        <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+          Comunidad en oración y servicio
+        </p>
+        <h1 id="t-hero-peticiones" class="mt-2 font-display text-display font-bold text-ink">
+          Peticiones y solicitudes
+        </h1>
+        <p class="mt-4 text-body text-ink-soft">
+          Desde este formulario puedes enviar tus intenciones de oración, solicitar información o
+          iniciar el trámite para cualquiera de los servicios y sacramentos de nuestra parroquia.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    <ServiceRequestForm
+      servicioPreseleccionado={servicioQuery}
+      returnTo="/peticiones"
+    />
+
+    <div class="mt-10 grid gap-6 md:grid-cols-3">
+      <div class="rounded-card border border-line bg-surface p-6 shadow-card">
+        <span class="grid size-11 place-items-center rounded-pill bg-gold-100 text-gold-600">
+          <Icon name="hand-heart" size={22} />
+        </span>
+        <h2 class="mt-3 font-display text-h3 font-bold text-ink">Intenciones y oración</h2>
+        <p class="mt-1 text-small text-ink-soft">
+          Presentamos tus intenciones comunitarias y peticiones de salud bajo la intercesión de San
+          Chárbel.
+        </p>
+      </div>
+
+      <div class="rounded-card border border-line bg-surface p-6 shadow-card">
+        <span class="grid size-11 place-items-center rounded-pill bg-gold-100 text-gold-600">
+          <Icon name="chalice" size={22} />
+        </span>
+        <h2 class="mt-3 font-display text-h3 font-bold text-ink">Sacramentos</h2>
+        <p class="mt-1 text-small text-ink-soft">
+          Bautismo, Primera Comunión, Confirmación, Matrimonio y atención a enfermos con seguimiento
+          del despacho.
+        </p>
+      </div>
+
+      <div class="rounded-card border border-line bg-surface p-6 shadow-card">
+        <span class="grid size-11 place-items-center rounded-pill bg-gold-100 text-gold-600">
+          <Icon name="mail" size={22} />
+        </span>
+        <h2 class="mt-3 font-display text-h3 font-bold text-ink">Atención directa</h2>
+        <p class="mt-1 text-small text-ink-soft">
+          Tu mensaje queda registrado en el Dashboard parroquial y se reenvía al correo{' '}
+          <strong>{parroquia.notificationGmail}</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

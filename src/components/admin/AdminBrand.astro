@@ -1,0 +1,112 @@
+---
+/**
+ * Emblema heráldico exclusivo para el Portal de Administración de la
+ * Parroquia San Chárbel.
+ *
+ * Inspirado en la tradición monástica libanesa: escudo ojival en oliva y oro,
+ * cruz radiante en la cúspide y silueta estilizada del cedro del Líbano en la
+ * base.
+ */
+interface Props {
+  size?: 'sm' | 'lg';
+  tone?: 'dark' | 'light';
+}
+
+const { size = 'sm', tone = 'dark' } = Astro.props;
+const isLarge = size === 'lg';
+---
+
+<div
+  class:list={[
+    'flex items-center gap-3.5',
+    isLarge && 'flex-col text-center gap-4',
+  ]}
+>
+  <div
+    class:list={[
+      'relative grid shrink-0 place-items-center rounded-2xl border shadow-lift',
+      isLarge ? 'size-20' : 'size-11',
+      tone === 'light'
+        ? 'border-gold-500/50 bg-olive-800 text-gold-300'
+        : 'border-gold-300 bg-olive-900 text-gold-300',
+    ]}
+    aria-hidden="true"
+  >
+    <svg
+      viewBox="0 0 64 64"
+      class:list={[isLarge ? 'size-14' : 'size-8']}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Escudo exterior en doble filete dorado */}
+      <path
+        d="M32 5L11 13.5V30.5C11 44.4 20.1 55.2 32 59C43.9 55.2 53 44.4 53 30.5V13.5L32 5Z"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M32 9.2L15 16.2V30.2C15 41.8 22.4 50.9 32 54.4C41.6 50.9 49 41.8 49 30.2V16.2L32 9.2Z"
+        stroke="currentColor"
+        stroke-width="1"
+        stroke-opacity="0.45"
+        stroke-linejoin="round"
+      />
+      {/* Halo / sol radiante superior */}
+      <circle
+        cx="32"
+        cy="23"
+        r="7.5"
+        stroke="currentColor"
+        stroke-width="1.2"
+        stroke-dasharray="2 2"
+      />
+      {/* Cruz monástica oriental */}
+      <path
+        d="M32 14V34M24.5 22H39.5M28 17.5H36"
+        stroke="currentColor"
+        stroke-width="2.2"
+        stroke-linecap="round"
+      />
+      {/* Ramas estilizadas del cedro del Líbano en la base */}
+      <path
+        d="M22 41.5C25.5 39.5 28.8 39 32 39C35.2 39 38.5 39.5 42 41.5"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+      />
+      <path
+        d="M25 45.5C27.5 44.2 29.8 43.8 32 43.8C34.2 43.8 36.5 44.2 39 45.5"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+      />
+      <path
+        d="M32 38.5V48.5"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+      />
+    </svg>
+  </div>
+
+  <div>
+    <p
+      class:list={[
+        'font-display font-bold tracking-tight',
+        isLarge ? 'text-h2' : 'text-h3 leading-tight',
+        tone === 'light' ? 'text-on-dark' : 'text-ink',
+      ]}
+    >
+      San Chárbel
+    </p>
+    <p
+      class:list={[
+        'text-overline font-semibold tracking-[0.16em] uppercase',
+        tone === 'light' ? 'text-gold-300' : 'text-gold-600',
+      ]}
+    >
+      Portal de Administración
+    </p>
+  </div>
+</div>

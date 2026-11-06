@@ -26,3 +26,6 @@ scripts/favicon-preview.png
 
 # jetbrains setting folder
 .idea/
+
+# local agent vendor clones
+.agents/vendor/

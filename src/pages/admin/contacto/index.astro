@@ -1,0 +1,278 @@
+---
+/**
+ * /admin/contacto — Gestión integral de datos de contacto, ubicación, redes
+ * sociales, textos institucionales y correo Gmail de notificaciones
+ * (`site_settings`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const payload = {
+    nombre: String(form.get('nombre') ?? '').trim() || 'Parroquia San Chárbel',
+    tagline: String(form.get('tagline') ?? '').trim(),
+    santo_titulo: String(form.get('santo_titulo') ?? '').trim(),
+    santo_texto: String(form.get('santo_texto') ?? '').trim(),
+    footer_cita: String(form.get('footer_cita') ?? '').trim(),
+    direccion: String(form.get('direccion') ?? '').trim(),
+    barrio: String(form.get('barrio') ?? '').trim(),
+    ciudad: String(form.get('ciudad') ?? '').trim(),
+    departamento: String(form.get('departamento') ?? '').trim(),
+    telefono_fijo: String(form.get('telefono_fijo') ?? '').trim() || null,
+    telefono_movil: String(form.get('telefono_movil') ?? '').trim() || null,
+    email: String(form.get('email') ?? '').trim() || null,
+    notification_gmail: String(form.get('notification_gmail') ?? '').trim() || null,
+    whatsapp: String(form.get('whatsapp') ?? '').trim() || null,
+    facebook: String(form.get('facebook') ?? '').trim() || null,
+    instagram: String(form.get('instagram') ?? '').trim() || null,
+    youtube: String(form.get('youtube') ?? '').trim() || null,
+    mapa_ficha: String(form.get('mapa_ficha') ?? '').trim() || null,
+    revisado_en: new Date().toISOString().slice(0, 10),
+  };
+
+  const { error } = await supabase.from('site_settings').upsert({ id: 'default', ...payload });
+  if (error) errorMsg = error.message;
+  else notice = 'Configuración general y contacto guardados.';
+}
+
+const { data: settings, error: loadError } = await supabase
+  .from('site_settings')
+  .select('*')
+  .eq('id', 'default')
+  .maybeSingle();
+
+if (loadError && !errorMsg) {
+  errorMsg = loadError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : loadError.message;
+}
+
+const s = settings ?? {};
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Contacto, textos y ajustes generales"
+  subtitle="Edita la información de ubicación, teléfonos, redes sociales, textos de la portada y el correo Gmail."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <form
+    method="POST"
+    class="grid gap-5 rounded-card border border-line bg-surface p-6 shadow-card sm:grid-cols-2"
+  >
+    <h2 class="font-display text-h3 font-bold text-ink sm:col-span-2">
+      1. Identidad y textos de la página
+    </h2>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Nombre de la parroquia</span>
+      <input
+        name="nombre"
+        value={s.nombre ?? 'Parroquia San Chárbel'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Lema corto</span>
+      <input
+        name="tagline"
+        value={s.tagline ?? 'Una comunidad que ora, celebra y sirve con amor'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block sm:col-span-2">
+      <span class="text-small font-semibold text-ink">Título de la banda de San Chárbel</span>
+      <input
+        name="santo_titulo"
+        value={s.santo_titulo ?? 'San Chárbel, ruega por nosotros'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block sm:col-span-2">
+      <span class="text-small font-semibold text-ink">Texto de la banda de San Chárbel</span>
+      <textarea
+        name="santo_texto"
+        rows="2"
+        class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      >{s.santo_texto ?? 'San Chárbel Makhlouf, santo libanés del siglo XIX, ejemplo de oración, humildad y entrega a Dios. Su vida sigue inspirando a miles de fieles en el mundo.'}</textarea>
+    </label>
+
+    <label class="block sm:col-span-2">
+      <span class="text-small font-semibold text-ink">Cita espiritual del pie de página</span>
+      <input
+        name="footer_cita"
+        value={s.footer_cita ?? '«Que el Señor de los Milagros y San Chárbel guíen y bendigan a nuestra comunidad.»'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <h2 class="mt-4 border-t border-line pt-4 font-display text-h3 font-bold text-ink sm:col-span-2">
+      2. Ubicación, teléfonos y correo Gmail
+    </h2>
+
+    <label class="block sm:col-span-2">
+      <span class="text-small font-semibold text-ink">Dirección física</span>
+      <input
+        name="direccion"
+        value={s.direccion ?? 'Calle 98 # 65-120'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Barrio</span>
+      <input
+        name="barrio"
+        value={s.barrio ?? 'Villa Carolina'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Ciudad</span>
+      <input
+        name="ciudad"
+        value={s.ciudad ?? 'Barranquilla'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Departamento</span>
+      <input
+        name="departamento"
+        value={s.departamento ?? 'Atlántico'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Teléfono fijo</span>
+      <input
+        name="telefono_fijo"
+        value={s.telefono_fijo ?? '(605) 309 0700'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Teléfono móvil / celular</span>
+      <input
+        name="telefono_movil"
+        value={s.telefono_movil ?? '317 658 4562'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">WhatsApp (número o enlace)</span>
+      <input
+        name="whatsapp"
+        value={s.whatsapp ?? ''}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Correo de contacto público</span>
+      <input
+        type="email"
+        name="email"
+        value={s.email ?? 'info@parroquiasancharbel.org'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">
+        Correo Gmail para recibir formularios
+      </span>
+      <input
+        type="email"
+        name="notification_gmail"
+        value={s.notification_gmail ?? s.email ?? 'info@parroquiasancharbel.org'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <h2 class="mt-4 border-t border-line pt-4 font-display text-h3 font-bold text-ink sm:col-span-2">
+      3. Redes sociales y Google Maps
+    </h2>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Facebook (URL)</span>
+      <input
+        type="url"
+        name="facebook"
+        value={s.facebook ?? ''}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Instagram (URL)</span>
+      <input
+        type="url"
+        name="instagram"
+        value={s.instagram ?? ''}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">YouTube (URL)</span>
+      <input
+        type="url"
+        name="youtube"
+        value={s.youtube ?? ''}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Enlace ficha Google Maps</span>
+      <input
+        type="url"
+        name="mapa_ficha"
+        value={s.mapa_ficha ?? 'https://maps.google.com/?cid=17941626938708420674'}
+        class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+      />
+    </label>
+
+    <div class="pt-2 sm:col-span-2">
+      <button
+        type="submit"
+        class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-7 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+      >
+        Guardar todos los cambios
+      </button>
+    </div>
+  </form>
+</AdminLayout>

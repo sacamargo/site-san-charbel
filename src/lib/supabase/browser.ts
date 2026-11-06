@@ -1,14 +1,20 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+/**
+ * Cliente de navegador — flujos del cliente como recuperación de contraseña.
+ */
 export function createSupabaseBrowserClient() {
-	const url = import.meta.env.PUBLIC_SUPABASE_URL;
-	const publishableKey = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url =
+    import.meta.env.PUBLIC_SUPABASE_URL ?? import.meta.env.SUPABASE_URL;
+  const key =
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    import.meta.env.SUPABASE_KEY;
 
-	if (!url || !publishableKey) {
-		throw new Error(
-			'Supabase is not configured. Copy .env.example to .env and add the project URL and publishable key.',
-		);
-	}
+  if (!url || !key) {
+    throw new Error(
+      'Supabase no está configurado. Define PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY en .env.',
+    );
+  }
 
-	return createBrowserClient(url, publishableKey);
+  return createBrowserClient(url, key);
 }

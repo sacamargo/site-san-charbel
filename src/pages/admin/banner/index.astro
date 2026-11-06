@@ -1,0 +1,317 @@
+---
+/**
+ * /admin/banner — Gestión de las imágenes y textos que se muestran en el
+ * banner principal de la parte inicial (`hero_slides` + `site_settings`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'save_hero_text') {
+    const hero_eyebrow = String(form.get('hero_eyebrow') ?? '').trim();
+    const hero_titulo = String(form.get('hero_titulo') ?? '').trim();
+    const hero_subtitulo = String(form.get('hero_subtitulo') ?? '').trim();
+
+    const { error } = await supabase.from('site_settings').upsert({
+      id: 'default',
+      hero_eyebrow: hero_eyebrow || 'Bienvenido a',
+      hero_titulo: hero_titulo || 'Parroquia San Chárbel',
+      hero_subtitulo,
+    });
+    if (error) errorMsg = error.message;
+    else notice = 'Textos principales del banner actualizados.';
+  }
+
+  if (intent === 'create') {
+    const eyebrow = String(form.get('eyebrow') ?? '').trim() || null;
+    const titulo = String(form.get('titulo') ?? '').trim() || null;
+    const subtitulo = String(form.get('subtitulo') ?? '').trim() || null;
+    const cta_texto = String(form.get('cta_texto') ?? '').trim() || null;
+    const enlace = String(form.get('enlace') ?? '').trim() || null;
+    const imagenUrlExterna = String(form.get('imagen_url') ?? '').trim() || null;
+    const file = form.get('imagen');
+
+    let imagen_url = imagenUrlExterna;
+
+    if (file instanceof File && file.size > 0) {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await supabase.storage
+        .from('hero-banners')
+        .upload(path, buffer, {
+          contentType: file.type || 'image/jpeg',
+          upsert: false,
+        });
+
+      if (upErr) {
+        errorMsg = upErr.message;
+      } else {
+        const { data: pub } = supabase.storage.from('hero-banners').getPublicUrl(path);
+        imagen_url = pub.publicUrl;
+      }
+    }
+
+    if (!errorMsg && !imagen_url) {
+      errorMsg = 'Selecciona un archivo de imagen o ingresa una URL de imagen.';
+    } else if (!errorMsg && imagen_url) {
+      const { error } = await supabase.from('hero_slides').insert({
+        imagen_url,
+        eyebrow,
+        titulo,
+        subtitulo,
+        cta_texto,
+        enlace,
+        activo: true,
+      });
+      if (error) errorMsg = error.message;
+      else notice = 'Imagen de banner añadida.';
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const activo = form.get('activo') === 'true';
+    const { error } = await supabase
+      .from('hero_slides')
+      .update({ activo: !activo })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Estado del banner actualizado.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('hero_slides').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Banner eliminado.';
+  }
+}
+
+const { data: settings } = await supabase
+  .from('site_settings')
+  .select('hero_eyebrow, hero_titulo, hero_subtitulo')
+  .eq('id', 'default')
+  .maybeSingle();
+
+const { data: slides, error: listError } = await supabase
+  .from('hero_slides')
+  .select('*')
+  .order('orden', { ascending: true })
+  .order('created_at', { ascending: false });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Banner de la parte inicial"
+  subtitle="Controla las imágenes, títulos y botones que aparecen en la portada principal del sitio."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  {/* Textos por defecto del Hero */}
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Textos principales del banner inicial</h2>
+    <form method="POST" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="save_hero_text" />
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Antetítulo (Eyebrow)</span>
+        <input
+          name="hero_eyebrow"
+          value={settings?.hero_eyebrow ?? 'Bienvenido a'}
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Título principal</span>
+        <input
+          name="hero_titulo"
+          value={settings?.hero_titulo ?? 'Parroquia San Chárbel'}
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Mensaje de bienvenida</span>
+        <textarea
+          name="hero_subtitulo"
+          rows="2"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        >{settings?.hero_subtitulo ?? 'Somos una comunidad que ora, celebra y sirve con amor, bajo la intercesión de San Chárbel Makhlouf.'}</textarea>
+      </label>
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-2.5 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Guardar textos del banner
+        </button>
+      </div>
+    </form>
+  </section>
+
+  {/* Subir nueva imagen de banner */}
+  <section class="mt-8 rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Subir nueva imagen al banner inicial</h2>
+    <p class="mt-1 text-small text-ink-soft">
+      Si hay varias imágenes activas, el visitante podrá alternarlas en el banner principal.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Subir archivo de imagen</span>
+        <input type="file" name="imagen" accept="image/*" class="mt-1 block w-full text-small" />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">O URL de imagen externa</span>
+        <input
+          type="url"
+          name="imagen_url"
+          placeholder="https://..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Antetítulo específico (opcional)</span>
+        <input
+          name="eyebrow"
+          placeholder="Ej. Celebración especial"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Título del slide (opcional)</span>
+        <input
+          name="titulo"
+          placeholder="Ej. Fiesta Patronal de San Chárbel"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Subtítulo (opcional)</span>
+        <input
+          name="subtitulo"
+          placeholder="Texto descriptivo sobre la imagen…"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Texto del botón (opcional)</span>
+        <input
+          name="cta_texto"
+          placeholder="Conoce nuestra comunidad"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Enlace del botón (opcional)</span>
+        <input
+          name="enlace"
+          placeholder="/agenda o https://..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Añadir imagen al banner
+        </button>
+      </div>
+    </form>
+  </section>
+
+  {/* Listado */}
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">Imágenes del banner ({slides?.length ?? 0})</h2>
+    {
+      !slides?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          No hay imágenes personalizadas cargadas; se está mostrando la fotografía principal del
+          templo incluida en el proyecto.
+        </p>
+      ) : (
+        <ul class="mt-4 grid gap-5 sm:grid-cols-2" role="list">
+          {slides.map((s) => (
+            <li class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+              <img
+                src={s.imagen_url}
+                alt={s.titulo ?? 'Banner'}
+                class="aspect-video w-full object-cover"
+              />
+              <div class="flex flex-wrap items-center justify-between gap-2 p-4">
+                <div>
+                  <p class="font-semibold text-ink">{s.titulo || 'Banner sin título'}</p>
+                  <p class="text-small text-ink-soft">{s.activo ? 'Activo en portada' : 'Oculto'}</p>
+                </div>
+                <div class="flex gap-2">
+                  <form method="POST">
+                    <input type="hidden" name="intent" value="toggle" />
+                    <input type="hidden" name="id" value={s.id} />
+                    <input type="hidden" name="activo" value={String(s.activo)} />
+                    <button
+                      type="submit"
+                      class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                    >
+                      {s.activo ? 'Ocultar' : 'Activar'}
+                    </button>
+                  </form>
+                  <form method="POST" onsubmit="return confirm('¿Eliminar este banner?');">
+                    <input type="hidden" name="intent" value="delete" />
+                    <input type="hidden" name="id" value={s.id} />
+                    <button
+                      type="submit"
+                      class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                    >
+                      Eliminar
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>
