@@ -1,0 +1,6 @@
+{
+  "name": "supabase",
+  "author": { "name": "Supabase", "url": "https://supabase.com" },
+  "homepage": "https://github.com/supabase/agent-skills",
+  "repository": "https://github.com/supabase/agent-skills"
+}

@@ -26,3 +26,6 @@ scripts/favicon-preview.png
 
 # jetbrains setting folder
 .idea/
+
+# Catálogos comunitarios de skills (descargar con .agents/sync-vendor.ps1)
+.agents/vendor/
