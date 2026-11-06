@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "path": ".agents/vendor/antigravity-awesome-skills/skills",
+      "include_only": [
+        "astro",
+        "tailwind-design-system",
+        "tailwind-patterns",
+        "ui-a11y",
+        "fixing-accessibility",
+        "better-accessibility",
+        "accessibility-compliance-accessibility-audit",
+        "frontend-lighthouse",
+        "web-performance-optimization",
+        "frontend-security-coder",
+        "frontend-mobile-security-xss-scan",
+        "postgresql-devsec",
+        "seo-audit",
+        "seo-technical",
+        "seo-schema",
+        "local-seo-audit-checklist",
+        "gbp-local-seo-intent",
+        "vercel-deployment",
+        "typescript-expert"
+      ]
+    },
+    {
+      "path": ".agents/vendor/vibes-plug/skills",
+      "include_only": [
+        "astro-framework-expert",
+        "supabase-security-expert",
+        "tailwind-expert",
+        "accessibility-testing-expert"
+      ]
+    },
+    {
+      "path": ".agents/vendor/antigravity-skills/skills",
+      "include_only": [
+        "security-auditor",
+        "seo-meta-optimizer",
+        "seo-structure-architect"
+      ]
+    }
+  ]
+}
