@@ -1,5 +1,6 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import { isPlaceholderSupabaseConfig, resilientSupabaseFetch } from '@/db/supabase';
+import { wrapWithHybridFallback } from '@/lib/admin/local-store';
 import type { AstroCookies } from 'astro';
 
 /**
@@ -44,7 +45,7 @@ export function createSupabaseServerClient({
   const isHttps = new URL(request.url).protocol === 'https:';
   const cookieDomain = import.meta.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
 
-  return createServerClient(url, key, {
+  const rawClient = createServerClient(url, key, {
     global: {
       fetch: resilientSupabaseFetch,
     },
@@ -65,4 +66,6 @@ export function createSupabaseServerClient({
       },
     },
   });
+
+  return wrapWithHybridFallback(hasSupabaseConfig() ? rawClient : null);
 }

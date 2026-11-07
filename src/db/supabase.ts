@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { wrapWithHybridFallback } from '@/lib/admin/local-store';
 
 /**
  * Cliente Supabase para lectura/escritura desde el servidor (frontmatter de
@@ -116,15 +117,23 @@ export const resilientSupabaseFetch: typeof fetch = async (input, init) => {
 };
 
 let cachedClient: SupabaseClient | null = null;
+let fallbackOnlyClient: SupabaseClient | null = null;
 
-export function getPublicSupabaseClient(): SupabaseClient | null {
-  if (Date.now() < circuitOpenUntil) return null;
+export function getPublicSupabaseClient(): SupabaseClient {
+  if (Date.now() < circuitOpenUntil) {
+    if (!fallbackOnlyClient) fallbackOnlyClient = wrapWithHybridFallback(null);
+    return fallbackOnlyClient;
+  }
   if (cachedClient) return cachedClient;
   const cfg = readSupabaseConfig();
-  if (!cfg) return null;
-  cachedClient = createClient(cfg.url, cfg.key, {
+  if (!cfg) {
+    if (!fallbackOnlyClient) fallbackOnlyClient = wrapWithHybridFallback(null);
+    return fallbackOnlyClient;
+  }
+  const raw = createClient(cfg.url, cfg.key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: resilientSupabaseFetch },
   });
+  cachedClient = wrapWithHybridFallback(raw);
   return cachedClient;
 }

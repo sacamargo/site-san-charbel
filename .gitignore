@@ -29,3 +29,4 @@ scripts/favicon-preview.png
 
 # local agent vendor clones
 .agents/vendor/
+public/uploads/

@@ -19,47 +19,45 @@ let stats = {
   archivosPublicados: 0,
 };
 
-if (hasSupabaseConfig()) {
-  try {
-    const supabase = createSupabaseServerClient({
-      request: Astro.request,
-      cookies: Astro.cookies,
-    });
+try {
+  const supabase = createSupabaseServerClient({
+    request: Astro.request,
+    cookies: Astro.cookies,
+  });
 
-    const [reqNew, reqAll, evPub, slides, promos, biz, files] = await Promise.all([
-      supabase
-        .from('service_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('estado', 'nueva'),
-      supabase.from('service_requests').select('id', { count: 'exact', head: true }),
-      supabase.from('events').select('id', { count: 'exact', head: true }).eq('publicado', true),
-      supabase.from('hero_slides').select('id', { count: 'exact', head: true }).eq('activo', true),
-      supabase
-        .from('parish_promotions')
-        .select('id', { count: 'exact', head: true })
-        .eq('activo', true),
-      supabase
-        .from('community_businesses')
-        .select('id', { count: 'exact', head: true })
-        .eq('activo', true),
-      supabase
-        .from('parish_files')
-        .select('id', { count: 'exact', head: true })
-        .eq('publicado', true),
-    ]);
+  const [reqNew, reqAll, evPub, slides, promos, biz, files] = await Promise.all([
+    supabase
+      .from('service_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('estado', 'nueva'),
+    supabase.from('service_requests').select('id', { count: 'exact', head: true }),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('publicado', true),
+    supabase.from('hero_slides').select('id', { count: 'exact', head: true }).eq('activo', true),
+    supabase
+      .from('parish_promotions')
+      .select('id', { count: 'exact', head: true })
+      .eq('activo', true),
+    supabase
+      .from('community_businesses')
+      .select('id', { count: 'exact', head: true })
+      .eq('activo', true),
+    supabase
+      .from('parish_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('publicado', true),
+  ]);
 
-    stats = {
-      solicitudesNuevas: reqNew.count ?? 0,
-      solicitudesTotales: reqAll.count ?? 0,
-      eventosPublicados: evPub.count ?? 0,
-      slidesActivos: slides.count ?? 0,
-      promocionesActivas: promos.count ?? 0,
-      comerciosActivos: biz.count ?? 0,
-      archivosPublicados: files.count ?? 0,
-    };
-  } catch {
-    // Si alguna tabla aún no se ha migrado, mantenemos los contadores en 0
-  }
+  stats = {
+    solicitudesNuevas: reqNew.count ?? 0,
+    solicitudesTotales: reqAll.count ?? 0,
+    eventosPublicados: evPub.count ?? 0,
+    slidesActivos: slides.count ?? 0,
+    promocionesActivas: promos.count ?? 0,
+    comerciosActivos: biz.count ?? 0,
+    archivosPublicados: files.count ?? 0,
+  };
+} catch {
+  // Si alguna tabla aún no se ha migrado, mantenemos los contadores en 0
 }
 
 const tarjetasResumen = [
