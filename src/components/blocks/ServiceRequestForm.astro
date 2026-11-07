@@ -1,0 +1,339 @@
+---
+/**
+ * Formulario de peticiones y solicitudes para los servicios de la parroquia.
+ *
+ * Guarda la solicitud en `service_requests` (visible y gestionable desde
+ * `/admin/solicitudes`) y la reenvía al correo Gmail configurado en el
+ * Dashboard.
+ */
+import Icon from '@/components/ui/Icon.astro';
+import { getServicios } from '@/lib/queries/servicios';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+interface Props {
+  servicioPreseleccionado?: string;
+  titulo?: string;
+  subtitulo?: string;
+  returnTo?: string;
+}
+
+const {
+  servicioPreseleccionado = '',
+  titulo = 'Solicitud de servicios y peticiones',
+  subtitulo = 'Escribe tu petición o solicita orientación para cualquiera de los sacramentos y servicios de nuestra parroquia. El despacho parroquial recibirá tu mensaje en el panel y en su correo.',
+  returnTo = Astro.url.pathname,
+} = Astro.props;
+
+const servicios = await getServicios();
+const settings = await getSiteSettings();
+const estadoUrl = Astro.url.searchParams.get('estado');
+---
+
+<section
+  id="formulario-peticion"
+  class="rounded-band border border-line bg-surface p-6 shadow-card md:p-10"
+  aria-labelledby="t-form-peticion"
+>
+  <div class="max-w-2xl">
+    <p class="text-overline font-semibold tracking-[0.14em] text-gold-600 uppercase">
+      Atención parroquial en línea
+    </p>
+    <h2 id="t-form-peticion" class="mt-2 font-display text-h2 font-bold text-ink">
+      {titulo}
+    </h2>
+    <p class="mt-2 text-body text-ink-soft">
+      {subtitulo}
+    </p>
+  </div>
+
+  {
+    estadoUrl === 'enviado' && (
+      <div
+        class="mt-6 flex items-start gap-3 rounded-card border border-olive-700/30 bg-sand-soft p-4 text-ink"
+        role="status"
+      >
+        <span class="mt-0.5 shrink-0 text-olive-700">
+          <Icon name="heart" size={20} />
+        </span>
+        <div>
+          <p class="font-semibold">Recibimos tu solicitud correctamente.</p>
+          <p class="mt-1 text-small text-ink-soft">
+            Quedó registrada en la bandeja del despacho parroquial ({settings.notificationGmail}). Nos
+            comunicaremos contigo para confirmar los pasos y la disponibilidad.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  {
+    estadoUrl === 'incompleto' && (
+      <div
+        class="mt-6 rounded-card border border-gold-300 bg-gold-100 p-4 text-small font-semibold text-gold-600"
+        role="alert"
+      >
+        Por favor completa todos los campos obligatorios y acepta el tratamiento de datos antes de
+        enviar.
+      </div>
+    )
+  }
+
+  <form
+    method="POST"
+    action="/api/peticiones"
+    data-peticion-form
+    class="mt-8 grid gap-5 sm:grid-cols-2"
+  >
+    <input type="hidden" name="return_to" value={returnTo} />
+    {/* Honeypot oculto para bots */}
+    <div class="hidden" aria-hidden="true">
+      <label>
+        No llenar este campo
+        <input type="text" name="website_url" tabindex="-1" autocomplete="off" />
+      </label>
+    </div>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Servicio o sacramento *</span>
+      <select
+        name="servicio_slug"
+        required
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      >
+        {
+          servicios.map((s) => (
+            <option value={s.slug} selected={servicioPreseleccionado === s.slug}>
+              {s.nombre}
+            </option>
+          ))
+        }
+        <option
+          value="intencion-misa"
+          selected={servicioPreseleccionado === 'intencion-misa'}
+        >
+          Intención de Misa / Petición de oración
+        </option>
+        <option
+          value="bendicion-hogar"
+          selected={servicioPreseleccionado === 'bendicion-hogar'}
+        >
+          Bendición de hogar o negocio
+        </option>
+        <option
+          value="grupos-parroquiales"
+          selected={servicioPreseleccionado === 'grupos-parroquiales'}
+        >
+          Grupos parroquiales y apostolados
+        </option>
+        <option value="general" selected={servicioPreseleccionado === 'general'}>
+          Otra consulta al despacho parroquial
+        </option>
+      </select>
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Tipo de solicitud *</span>
+      <select
+        name="tipo_peticion"
+        required
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      >
+        <option value="Información y requisitos">Información y requisitos</option>
+        <option value="Solicitud de fecha / inscripción">Solicitud de fecha o inscripción</option>
+        <option value="Petición de oración / intención">Petición de oración o intención</option>
+        <option value="Atención pastoral / visita a enfermo">
+          Atención pastoral o visita a enfermo
+        </option>
+        <option value="Certificados y partidas">Certificados y partidas eclesiásticas</option>
+      </select>
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Tu nombre completo *</span>
+      <input
+        type="text"
+        name="nombre_solicitante"
+        required
+        minlength="2"
+        autocomplete="name"
+        placeholder="Ej. María Fernanda Gómez"
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Teléfono o WhatsApp *</span>
+      <input
+        type="tel"
+        name="telefono"
+        required
+        minlength="7"
+        autocomplete="tel"
+        placeholder="Ej. 300 123 4567"
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Correo electrónico *</span>
+      <input
+        type="email"
+        name="email"
+        required
+        autocomplete="email"
+        placeholder="tucorreo@ejemplo.com"
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      />
+    </label>
+
+    <label class="block">
+      <span class="text-small font-semibold text-ink">Fecha estimada (opcional)</span>
+      <input
+        type="date"
+        name="fecha_preferida"
+        class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      />
+    </label>
+
+    <label class="block sm:col-span-2">
+      <span class="text-small font-semibold text-ink">
+        Escribe tu petición o los detalles de tu solicitud *
+      </span>
+      <textarea
+        name="mensaje"
+        rows="4"
+        required
+        minlength="5"
+        placeholder="Cuéntanos en qué podemos servirte, nombres de las personas o cualquier detalle que el despacho deba conocer…"
+        class="mt-1.5 w-full rounded-card border border-line bg-ivory px-3.5 py-2.5 text-body text-ink"
+      ></textarea>
+    </label>
+
+    <label class="flex items-start gap-3 sm:col-span-2">
+      <input
+        type="checkbox"
+        name="consentimiento"
+        required
+        class="mt-1 size-5 shrink-0 rounded border-line accent-olive-700"
+      />
+      <span class="text-small text-ink-soft">
+        Autorizo a la {settings.nombre} a tratar mis datos de contacto únicamente para responder y
+        dar seguimiento pastoral a esta solicitud. Entiendo que el envío registra la petición y que
+        la disponibilidad de fechas se confirma directamente con el despacho parroquial.
+      </span>
+    </label>
+
+    <div class="flex flex-wrap items-center justify-between gap-4 pt-2 sm:col-span-2">
+      <button
+        type="submit"
+        data-peticion-submit
+        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-olive-700 px-7 py-3 text-small font-semibold text-on-dark transition-colors hover:bg-olive-600"
+      >
+        <Icon name="mail" size={18} />
+        <span>Enviar petición a la parroquia</span>
+      </button>
+
+      <p class="text-small text-muted">
+        Destinatario parroquial: <strong class="text-ink-soft">{settings.notificationGmail}</strong>
+      </p>
+    </div>
+
+    <div
+      data-peticion-feedback
+      hidden
+      class="rounded-card border border-olive-700/30 bg-sand-soft p-4 text-small text-ink sm:col-span-2"
+      role="status"
+    >
+    </div>
+  </form>
+
+  {
+    settings.servicesFormUrl && (
+      <div class="mt-8 border-t border-line pt-6">
+        <details class="group">
+          <summary class="flex min-h-11 cursor-pointer items-center justify-between font-display text-h3 font-bold text-gold-600 hover:text-olive-700">
+            <span>También puedes completar el formulario externo de Google Forms</span>
+            <Icon name="chevron-down" size={20} />
+          </summary>
+          <div class="mt-4 overflow-hidden rounded-card border border-line bg-ivory">
+            <iframe
+              src={settings.servicesFormUrl}
+              title="Formulario complementario de servicios parroquiales"
+              loading="lazy"
+              class="h-[640px] w-full border-0"
+            />
+          </div>
+        </details>
+      </div>
+    )
+  }
+</section>
+
+<script>
+  const forms = document.querySelectorAll<HTMLFormElement>('[data-peticion-form]');
+
+  forms.forEach((form) => {
+    const submitBtn = form.querySelector<HTMLButtonElement>('[data-peticion-submit]');
+    const feedback = form.querySelector<HTMLElement>('[data-peticion-feedback]');
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!submitBtn || !feedback) return;
+
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando solicitud…';
+      feedback.hidden = true;
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: new FormData(form),
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          feedback.textContent =
+            result.error || 'No pudimos registrar la solicitud. Verifica los datos e inténtalo de nuevo.';
+          feedback.hidden = false;
+        } else {
+          form.reset();
+          feedback.innerHTML = '';
+          const title = document.createElement('p');
+          title.className = 'font-semibold text-ink';
+          title.textContent = '¡Solicitud enviada y registrada en el Dashboard de la parroquia!';
+
+          const desc = document.createElement('p');
+          desc.className = 'mt-1 text-ink-soft';
+          desc.textContent = `El despacho parroquial (${result.notificationGmail || ''}) revisará tu petición y se pondrá en contacto contigo.`;
+
+          feedback.appendChild(title);
+          feedback.appendChild(desc);
+
+          if (result.gmailComposeUrl) {
+            const linkWrap = document.createElement('p');
+            linkWrap.className = 'mt-3';
+            const link = document.createElement('a');
+            link.href = result.gmailComposeUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'font-semibold text-gold-600 underline hover:text-olive-700';
+            link.textContent = 'Enviar también una copia directa desde tu Gmail →';
+            linkWrap.appendChild(link);
+            feedback.appendChild(linkWrap);
+          }
+
+          feedback.hidden = false;
+        }
+      } catch {
+        // Si falla fetch por red, enviamos el formulario de forma tradicional
+        form.submit();
+        return;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    });
+  });
+</script>

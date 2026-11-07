@@ -31,6 +31,20 @@ const cuando = event.allDay || cruzaDias ? formatCuando(event) : formatFranja(ev
     class="top-1/2 right-[-1rem] -z-10 hidden w-28 -translate-y-1/2 rotate-[125deg] text-olive-700 opacity-[0.07] sm:block"
   />
 
+  {
+    event.flyerUrl && (
+      <div class="border-b border-sand bg-ivory">
+        <img
+          src={event.flyerUrl}
+          alt={`Flyer de ${event.title}`}
+          loading="eager"
+          decoding="async"
+          class="max-h-96 w-full object-cover object-top"
+        />
+      </div>
+    )
+  }
+
   <div class="flex flex-col gap-6 p-6 sm:flex-row sm:items-start md:p-8">
     <DateBadge date={event.start} allDay={event.allDay} size="lg" class="border-sand bg-surface" />
 

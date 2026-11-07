@@ -25,7 +25,7 @@
 import { Image } from 'astro:assets';
 import Carousel from '@/components/blocks/Carousel.astro';
 import Icon from '@/components/ui/Icon.astro';
-import { momentos } from '@/data/momentos';
+import { getMomentos } from '@/lib/queries/momentos';
 
 /**
  * Altura de la tira en cada tramo. Están aquí y no sueltas en las clases
@@ -36,25 +36,33 @@ import { momentos } from '@/data/momentos';
 const ALTO_MOVIL = 220;
 const ALTO_ESCRITORIO = 300;
 
+const listaMomentos = await getMomentos();
+
 /**
  * Como la altura es conocida, el ancho en pantalla también: sale de la
  * proporción de cada foto. Y sabiendo el ancho se puede pedir exactamente ese
  * tamaño en vez de dejar que Astro sirva medidas al bulto — en el mosaico
  * anterior una ranura de 570px recibía una imagen de 900.
  */
-const fotos = momentos.map((momento) => {
-  const proporcion = momento.imagen.width / momento.imagen.height;
-  const anchoEscritorio = Math.round(ALTO_ESCRITORIO * proporcion);
-  // El doble cubre las pantallas 2×; se descarta lo que supere el original,
-  // porque pedir más píxeles de los que hay no los inventa.
-  const anchos = [anchoEscritorio, anchoEscritorio * 2].filter(
-    (ancho) => momento.imagen.width >= ancho,
-  );
+const fotos = listaMomentos.map((momento) => {
+  if (momento.imagen) {
+    const proporcion = momento.imagen.width / momento.imagen.height;
+    const anchoEscritorio = Math.round(ALTO_ESCRITORIO * proporcion);
+    const anchos = [anchoEscritorio, anchoEscritorio * 2].filter(
+      (ancho) => momento.imagen!.width >= ancho,
+    );
+
+    return {
+      ...momento,
+      anchos: anchos.length ? anchos : [momento.imagen.width],
+      sizes: `(min-width: 768px) ${anchoEscritorio}px, ${Math.round(ALTO_MOVIL * proporcion)}px`,
+    };
+  }
 
   return {
     ...momento,
-    anchos: anchos.length ? anchos : [momento.imagen.width],
-    sizes: `(min-width: 768px) ${anchoEscritorio}px, ${Math.round(ALTO_MOVIL * proporcion)}px`,
+    anchos: [400],
+    sizes: '(min-width: 768px) 400px, 290px',
   };
 });
 ---
@@ -79,15 +87,27 @@ const fotos = momentos.map((momento) => {
               las apaisadas: dejarían de medir todas lo mismo de alto y
               volverían los desajustes que este componente viene a quitar.
             */}
-            <Image
-              src={foto.imagen}
-              alt={foto.alt}
-              widths={foto.anchos}
-              sizes={foto.sizes}
-              loading={i < 2 ? 'eager' : 'lazy'}
-              decoding="async"
-              class="h-full w-auto max-w-none rounded-card object-cover"
-            />
+            {
+              foto.imagen ? (
+                <Image
+                  src={foto.imagen}
+                  alt={foto.alt}
+                  widths={foto.anchos}
+                  sizes={foto.sizes}
+                  loading={i < 2 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  class="h-full w-auto max-w-none rounded-card object-cover"
+                />
+              ) : (
+                <img
+                  src={foto.imagen_url}
+                  alt={foto.alt}
+                  loading={i < 2 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  class="h-full w-auto max-w-none rounded-card object-cover"
+                />
+              )
+            }
           </button>
         </li>
       ))

@@ -19,6 +19,10 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import Hero from '@/components/blocks/Hero.astro';
 import MomentosCarousel from '@/components/blocks/MomentosCarousel.astro';
 import Carousel from '@/components/blocks/Carousel.astro';
+import PromocionesBlock from '@/components/blocks/PromocionesBlock.astro';
+import ComerciosBlock from '@/components/blocks/ComerciosBlock.astro';
+import ArchivosBlock from '@/components/blocks/ArchivosBlock.astro';
+import ServiceRequestForm from '@/components/blocks/ServiceRequestForm.astro';
 import EventCard from '@/components/cards/EventCard.astro';
 import SectionTitle from '@/components/ui/SectionTitle.astro';
 import Button from '@/components/ui/Button.astro';
@@ -26,9 +30,10 @@ import Icon from '@/components/ui/Icon.astro';
 import Watermark from '@/components/ui/Watermark.astro';
 import { getProximasCelebraciones, contarCelebraciones } from '@/lib/queries/celebraciones';
 import { getMisas } from '@/lib/queries/horarios';
+import { getServicios } from '@/lib/queries/servicios';
+import { getSiteSettings } from '@/lib/queries/settings';
+import { getHeroSlides } from '@/lib/queries/banner';
 import { formatHoras } from '@/lib/format';
-import { servicios } from '@/data/servicios';
-import { parroquia } from '@/data/parroquia';
 import interiorTemplo from '@/assets/interior-templo.webp';
 import sanCharbel from '@/assets/san-charbel.webp';
 import fachadaTemplo from '@/assets/fachada-templo.jpg';
@@ -45,10 +50,15 @@ import fachadaTemplo from '@/assets/fachada-templo.jpg';
  */
 const EVENTOS_EN_PORTADA = 5;
 
-const eventos = await getProximasCelebraciones(EVENTOS_EN_PORTADA);
-const totalEventos = await contarCelebraciones();
+const [eventos, totalEventos, misas, servicios, parroquia, heroSlides] = await Promise.all([
+  getProximasCelebraciones(EVENTOS_EN_PORTADA),
+  contarCelebraciones(),
+  getMisas(),
+  getServicios(),
+  getSiteSettings(),
+  getHeroSlides(),
+]);
 const mostrandoTodos = totalEventos < EVENTOS_EN_PORTADA;
-const misas = await getMisas();
 
 ---
 
@@ -57,9 +67,8 @@ const misas = await getMisas();
   description={`${parroquia.nombre} — ${parroquia.barrio}, ${parroquia.ciudad}. Horarios de misas, servicios y vida parroquial.`}
 >
   {/* 2 — Portada */}
-  <Hero eyebrow="Bienvenido a" titulo="Parroquia San Chárbel">
-    Somos una comunidad que ora, celebra y sirve con amor, bajo la intercesión de San Chárbel
-    Makhlouf.
+  <Hero eyebrow={parroquia.heroEyebrow} titulo={parroquia.heroTitulo} slides={heroSlides}>
+    {parroquia.heroSubtitulo}
   </Hero>
 
   {/* 3 — Próximos eventos */}
@@ -204,7 +213,7 @@ const misas = await getMisas();
             aparecía centrado en mitad de la nada. */}
         <Button
           variant="link"
-          href="/agenda"
+          href="/servicios#horarios"
           iconEnd="arrow-right"
           class="mt-6 self-start"
         >
@@ -273,11 +282,10 @@ const misas = await getMisas();
 
         <div class="text-center md:text-left">
           <h2 id="t-santo" class="font-display text-h2 font-bold text-ink">
-            San Chárbel, ruega por nosotros
+            {parroquia.santoTitulo}
           </h2>
           <p class="mt-3 max-w-prose text-body text-ink-soft">
-            San Chárbel Makhlouf, santo libanés del siglo XIX, ejemplo de oración, humildad y
-            entrega a Dios. Su vida sigue inspirando a miles de fieles en el mundo.
+            {parroquia.santoTexto}
           </p>
         </div>
 
@@ -307,7 +315,7 @@ const misas = await getMisas();
               <span class="mt-auto pt-2 text-small font-semibold text-gold-600 group-hover:text-olive-700">
                 <a
                   href={servicio.href}
-                  class="no-underline after:absolute after:inset-0 after:content-['']"
+                  class="no-underline after:absolute after:inset-0 after:z-10 after:content-['']"
                 >
                   Más información →
                 </a>
@@ -317,6 +325,20 @@ const misas = await getMisas();
         ))
       }
     </ul>
+  </section>
+
+  {/* 7b — Espacio promocional de actividades de la iglesia */}
+  <PromocionesBlock />
+
+  {/* 7c — Emprendimientos y negocios de la comunidad parroquial */}
+  <ComerciosBlock />
+
+  {/* 7d — Documentos y archivos descargables */}
+  <ArchivosBlock />
+
+  {/* 7e — Formulario de peticiones y solicitudes de servicios */}
+  <section class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20" aria-label="Formulario de peticiones">
+    <ServiceRequestForm returnTo="/" />
   </section>
 
   {/* 8 — Ubicación y contacto */}

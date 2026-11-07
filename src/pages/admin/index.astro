@@ -1,0 +1,158 @@
+---
+/**
+ * /admin — Resumen ejecutivo del Dashboard de gestión de toda la página web.
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { adminNav } from '@/lib/admin/nav';
+import { createSupabaseServerClient, hasSupabaseConfig } from '@/lib/supabase/server';
+
+const email = Astro.locals.adminUser?.email ?? null;
+
+let stats = {
+  solicitudesNuevas: 0,
+  solicitudesTotales: 0,
+  eventosPublicados: 0,
+  slidesActivos: 0,
+  promocionesActivas: 0,
+  comerciosActivos: 0,
+  archivosPublicados: 0,
+};
+
+try {
+  const supabase = createSupabaseServerClient({
+    request: Astro.request,
+    cookies: Astro.cookies,
+  });
+
+  const [reqNew, reqAll, evPub, slides, promos, biz, files] = await Promise.all([
+    supabase
+      .from('service_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('estado', 'nueva'),
+    supabase.from('service_requests').select('id', { count: 'exact', head: true }),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('publicado', true),
+    supabase.from('hero_slides').select('id', { count: 'exact', head: true }).eq('activo', true),
+    supabase
+      .from('parish_promotions')
+      .select('id', { count: 'exact', head: true })
+      .eq('activo', true),
+    supabase
+      .from('community_businesses')
+      .select('id', { count: 'exact', head: true })
+      .eq('activo', true),
+    supabase
+      .from('parish_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('publicado', true),
+  ]);
+
+  stats = {
+    solicitudesNuevas: reqNew.count ?? 0,
+    solicitudesTotales: reqAll.count ?? 0,
+    eventosPublicados: evPub.count ?? 0,
+    slidesActivos: slides.count ?? 0,
+    promocionesActivas: promos.count ?? 0,
+    comerciosActivos: biz.count ?? 0,
+    archivosPublicados: files.count ?? 0,
+  };
+} catch {
+  // Si alguna tabla aún no se ha migrado, mantenemos los contadores en 0
+}
+
+const tarjetasResumen = [
+  {
+    label: 'Peticiones nuevas',
+    valor: stats.solicitudesNuevas,
+    sub: `${stats.solicitudesTotales} recibidas en total`,
+    href: '/admin/solicitudes',
+    icon: 'mail' as const,
+  },
+  {
+    label: 'Eventos en calendario',
+    valor: stats.eventosPublicados,
+    sub: 'Visibles en portada y /agenda',
+    href: '/admin/eventos',
+    icon: 'calendar-days' as const,
+  },
+  {
+    label: 'Actividades promocionales',
+    valor: stats.promocionesActivas,
+    sub: `${stats.slidesActivos} banners en portada`,
+    href: '/admin/promociones',
+    icon: 'flame' as const,
+  },
+  {
+    label: 'Negocios y archivos',
+    valor: stats.comerciosActivos + stats.archivosPublicados,
+    sub: `${stats.comerciosActivos} negocios · ${stats.archivosPublicados} documentos`,
+    href: '/admin/comercios',
+    icon: 'users' as const,
+  },
+];
+---
+
+<AdminLayout
+  title="Panel de control general"
+  subtitle="Administra cada sección de la página web de la Parroquia San Chárbel desde un solo lugar."
+  email={email}
+>
+  {/* Métricas rápidas */}
+  <section aria-label="Resumen de actividad" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {
+      tarjetasResumen.map((card) => (
+        <a
+          href={card.href}
+          class="flex flex-col justify-between rounded-card border border-line bg-surface p-5 text-ink no-underline shadow-card transition-shadow hover:shadow-lift"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-overline font-semibold tracking-wider text-gold-600 uppercase">
+              {card.label}
+            </span>
+            <span class="grid size-9 place-items-center rounded-pill bg-gold-100 text-gold-600">
+              <Icon name={card.icon} size={18} />
+            </span>
+          </div>
+          <p class="mt-3 font-display text-h2 font-bold text-ink">{card.valor}</p>
+          <p class="mt-1 text-small text-ink-soft">{card.sub}</p>
+        </a>
+      ))
+    }
+  </section>
+
+  {/* Módulos de gestión */}
+  <section class="mt-10" aria-labelledby="t-modulos-admin">
+    <h2 id="t-modulos-admin" class="font-display text-h3 font-bold text-ink">
+      Módulos de gestión del sitio web
+    </h2>
+    <p class="mt-1 text-small text-ink-soft">
+      Tu cuenta tiene permisos completos de administración sobre todos los módulos.
+    </p>
+
+    <ul class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
+      {
+        adminNav
+          .filter((i) => i.href !== '/admin')
+          .map((item) => (
+            <li class="flex">
+              <a
+                href={item.href}
+                class="group flex flex-1 flex-col gap-3 rounded-card border border-line bg-surface p-6 text-ink no-underline shadow-card transition-shadow hover:shadow-lift"
+              >
+                <span class="grid size-11 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                  <Icon name={item.icon} size={22} />
+                </span>
+                <h3 class="font-display text-h3 font-bold text-ink group-hover:text-olive-700">
+                  {item.label}
+                </h3>
+                <p class="text-small text-ink-soft">{item.description}</p>
+                <span class="mt-auto pt-2 text-small font-semibold text-gold-600 group-hover:text-olive-700">
+                  Gestionar →
+                </span>
+              </a>
+            </li>
+          ))
+      }
+    </ul>
+  </section>
+</AdminLayout>

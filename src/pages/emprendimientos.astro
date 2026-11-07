@@ -1,0 +1,183 @@
+---
+/**
+ * /emprendimientos — Directorio completo de negocios y servicios de las
+ * personas de la parroquia (`community_businesses`).
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { getComercios } from '@/lib/queries/comercios';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+const comercios = await getComercios();
+const parroquia = await getSiteSettings();
+const categoriaActiva = Astro.url.searchParams.get('categoria') || '';
+const categorias = [...new Set(comercios.map((c) => c.categoria))];
+const filtrados = categoriaActiva
+  ? comercios.filter((c) => c.categoria.toLowerCase() === categoriaActiva.toLowerCase())
+  : comercios;
+---
+
+<BaseLayout
+  title="Emprendimientos de la comunidad"
+  description={`Directorio de negocios, comercios y servicios de las familias de la ${parroquia.nombre}.`}
+>
+  <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-hero-comercios">
+    <Watermark class="-right-12 -bottom-20 w-36 rotate-[125deg] text-olive-700 opacity-10" />
+    <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+      <div class="max-w-2xl">
+        <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+          Comunidad solidaria
+        </p>
+        <h1 id="t-hero-comercios" class="mt-2 font-display text-display font-bold text-ink">
+          Emprendimientos y negocios de nuestra comunidad
+        </h1>
+        <p class="mt-4 text-body text-ink-soft">
+          Conoce y apoya los emprendimientos, comercios y servicios profesionales de las personas
+          que integran nuestra familia parroquial.
+        </p>
+        <div class="mt-6">
+          <Button href="/peticiones?servicio=emprendimiento#formulario-peticion" icon="users">
+            Solicitar publicación de mi negocio
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    {
+      categorias.length > 1 && (
+        <nav aria-label="Filtrar por categoría" class="mb-8 flex flex-wrap gap-2">
+          <a
+            href="/emprendimientos"
+            aria-current={!categoriaActiva ? 'page' : undefined}
+            class:list={[
+              'inline-flex min-h-11 items-center rounded-pill px-5 text-small font-semibold no-underline transition-colors',
+              !categoriaActiva
+                ? 'bg-olive-700 text-on-dark'
+                : 'border border-line bg-surface text-ink-soft hover:border-olive-700',
+            ]}
+          >
+            Todas ({comercios.length})
+          </a>
+          {categorias.map((cat) => (
+            <a
+              href={`/emprendimientos?categoria=${encodeURIComponent(cat)}`}
+              aria-current={categoriaActiva === cat ? 'page' : undefined}
+              class:list={[
+                'inline-flex min-h-11 items-center rounded-pill px-5 text-small font-semibold no-underline transition-colors',
+                categoriaActiva === cat
+                  ? 'bg-olive-700 text-on-dark'
+                  : 'border border-line bg-surface text-ink-soft hover:border-olive-700',
+              ]}
+            >
+              {cat}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+
+    {
+      filtrados.length === 0 ? (
+        <div class="rounded-band border border-dashed border-line bg-surface-alt p-10 text-center">
+          <span class="mx-auto grid size-14 place-items-center rounded-pill bg-gold-100 text-gold-600">
+            <Icon name="users" size={28} />
+          </span>
+          <h2 class="mt-4 font-display text-h3 font-bold text-ink">
+            Aún no hay negocios publicados en esta sección
+          </h2>
+          <p class="mx-auto mt-2 max-w-md text-small text-ink-soft">
+            Si haces parte de la comunidad de la Parroquia San Chárbel y deseas dar a conocer tu
+            emprendimiento o servicio, envíanos tus datos.
+          </p>
+          <div class="mt-6">
+            <Button href="/peticiones?servicio=emprendimiento#formulario-peticion">
+              Registrar mi emprendimiento
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
+          {filtrados.map((comercio) => {
+            const telLimpio = (comercio.whatsapp || comercio.telefono || '').replace(/\D/g, '');
+            const urlWhatsapp = telLimpio
+              ? `https://wa.me/${telLimpio.startsWith('57') ? telLimpio : `57${telLimpio}`}`
+              : null;
+
+            return (
+              <li class="flex">
+                <article class="flex flex-1 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
+                  {comercio.imagen_url && (
+                    <img
+                      src={comercio.imagen_url}
+                      alt={`Fotografía de ${comercio.nombre}`}
+                      loading="lazy"
+                      decoding="async"
+                      class="aspect-[16/10] w-full object-cover"
+                    />
+                  )}
+                  <div class="flex flex-1 flex-col gap-3 p-6">
+                    <span class="w-fit rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                      {comercio.categoria}
+                    </span>
+                    <h2 class="font-display text-h3 font-bold text-ink">{comercio.nombre}</h2>
+                    <p class="text-small text-ink-soft">{comercio.descripcion}</p>
+
+                    <ul class="mt-1 space-y-1 text-small text-muted" role="list">
+                      {comercio.propietario && (
+                        <li class="flex items-center gap-2">
+                          <Icon name="users" size={14} class="text-gold-600" />
+                          <span>{comercio.propietario}</span>
+                        </li>
+                      )}
+                      {comercio.direccion && (
+                        <li class="flex items-center gap-2">
+                          <Icon name="map-pin" size={14} class="text-gold-600" />
+                          <span>{comercio.direccion}</span>
+                        </li>
+                      )}
+                      {comercio.horario && (
+                        <li class="flex items-center gap-2">
+                          <Icon name="clock" size={14} class="text-gold-600" />
+                          <span>{comercio.horario}</span>
+                        </li>
+                      )}
+                    </ul>
+
+                    <div class="mt-auto flex flex-wrap gap-3 pt-4">
+                      {urlWhatsapp && (
+                        <a
+                          href={urlWhatsapp}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-olive-700 px-4 text-small font-semibold text-on-dark no-underline hover:bg-olive-600"
+                        >
+                          <Icon name="phone" size={15} />
+                          <span>WhatsApp / Llamar</span>
+                        </a>
+                      )}
+                      {comercio.sitio_web && (
+                        <a
+                          href={comercio.sitio_web}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-line px-4 text-small font-semibold text-gold-600 no-underline hover:border-olive-700"
+                        >
+                          <span>Web / Red social</span>
+                          <Icon name="external-link" size={14} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

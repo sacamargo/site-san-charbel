@@ -1,0 +1,140 @@
+---
+/**
+ * /admin/recuperar — Recuperación de contraseña a través de correo electrónico.
+ *
+ * Envía el enlace seguro de Supabase Auth apuntando a `/admin/restablecer` en
+ * el mismo origen (sea el subdominio administrativo o el dominio principal).
+ * Usa mensajes de respuesta neutros para evitar la enumeración de cuentas.
+ */
+import { Font } from 'astro:assets';
+import AdminBrand from '@/components/admin/AdminBrand.astro';
+import Icon from '@/components/ui/Icon.astro';
+import {
+  checkLoginRateLimit,
+  getClientIp,
+  recordFailedLogin,
+} from '@/lib/admin/security';
+import { createSupabaseServerClient, hasSupabaseConfig } from '@/lib/supabase/server';
+import '@/styles/global.css';
+
+const ip = getClientIp(Astro.request);
+let enviado = false;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const rateLimit = checkLoginRateLimit(ip);
+  if (!rateLimit.allowed) {
+    errorMsg = 'Has realizado demasiadas solicitudes seguidas. Espera unos minutos.';
+  } else if (!hasSupabaseConfig()) {
+    errorMsg = 'Supabase no está configurado en las variables de entorno.';
+  } else {
+    const form = await Astro.request.formData();
+    const email = String(form.get('email') ?? '').trim().toLowerCase();
+
+    if (!email || !email.includes('@')) {
+      errorMsg = 'Ingresa un correo electrónico válido.';
+    } else {
+      recordFailedLogin(ip);
+      try {
+        const supabase = createSupabaseServerClient({
+          request: Astro.request,
+          cookies: Astro.cookies,
+        });
+        const redirectTo = new URL('/admin/restablecer', Astro.url).toString();
+        await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      } catch (err) {
+        console.error('[admin/recuperar] Error enviando correo:', err);
+      }
+      // Siempre confirmamos con el mismo mensaje para no revelar si el correo existe
+      enviado = true;
+    }
+  }
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>Recuperar contraseña · Dashboard San Chárbel</title>
+    <Font cssVariable="--font-playfair" preload={[{ weight: 700, subset: 'latin' }]} />
+    <Font cssVariable="--font-nunito" preload={[{ weight: 400, subset: 'latin' }]} />
+  </head>
+  <body class="min-h-screen bg-olive-900 text-ink">
+    <main class="grid min-h-screen place-items-center px-4 py-12">
+      <div class="w-full max-w-md rounded-band border border-gold-500/30 bg-ivory p-8 shadow-lift md:p-10">
+        <AdminBrand size="lg" tone="dark" />
+
+        <h1 class="mt-4 text-center font-display text-h3 font-bold text-ink">
+          Recuperación de contraseña
+        </h1>
+        <p class="mt-2 text-center text-small text-ink-soft">
+          Ingresa el correo electrónico de tu cuenta administrativa y te enviaremos un enlace seguro
+          para definir una nueva contraseña.
+        </p>
+
+        {
+          enviado ? (
+            <div
+              class="mt-6 rounded-card border border-olive-700/30 bg-sand-soft p-5 text-small text-ink"
+              role="status"
+            >
+              <p class="font-semibold">Revisa tu bandeja de entrada.</p>
+              <p class="mt-1 text-ink-soft">
+                Si el correo ingresado corresponde a un usuario registrado, recibirás en unos
+                instantes un enlace para restablecer tu contraseña. Revisa también la carpeta de
+                correo no deseado (Spam).
+              </p>
+            </div>
+          ) : (
+            <form method="POST" class="mt-6 space-y-5">
+              <input type="hidden" name="csrf_token" value={Astro.locals.csrfToken ?? ''} />
+
+              {errorMsg && (
+                <div
+                  class="rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600"
+                  role="alert"
+                >
+                  {errorMsg}
+                </div>
+              )}
+
+              <label class="block">
+                <span class="text-small font-semibold text-ink">Correo electrónico registrado</span>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  autocomplete="email"
+                  placeholder="admin@parroquiasancharbel.org"
+                  class="mt-1.5 min-h-11 w-full rounded-card border border-line bg-surface px-3.5 py-2.5 text-body text-ink"
+                />
+              </label>
+
+              <button
+                type="submit"
+                class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark transition-colors hover:bg-olive-600"
+              >
+                <Icon name="mail" size={18} />
+                <span>Enviar enlace de recuperación</span>
+              </button>
+            </form>
+          )
+        }
+
+        <div class="mt-6 border-t border-line pt-5 text-center">
+          <a
+            href="/admin/login"
+            class="inline-flex min-h-11 items-center gap-1.5 text-small font-semibold text-gold-600 no-underline hover:text-olive-700"
+          >
+            <Icon name="chevron-left" size={16} />
+            <span>Volver al inicio de sesión</span>
+          </a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,91 @@
+---
+/**
+ * /descargas — Repositorio público de documentos, guías y archivos
+ * descargables de la parroquia (`parish_files`).
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { formatBytes, getArchivosPublicados } from '@/lib/queries/archivos';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+const archivos = await getArchivosPublicados();
+const parroquia = await getSiteSettings();
+---
+
+<BaseLayout
+  title="Documentos y descargas"
+  description={`Repositorio de boletines, hojas dominicales, oraciones y documentos descargables de la ${parroquia.nombre}.`}
+>
+  <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-hero-descargas">
+    <Watermark class="-right-12 -bottom-20 w-36 rotate-[125deg] text-olive-700 opacity-10" />
+    <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+      <div class="max-w-2xl">
+        <p class="text-overline font-semibold tracking-[0.16em] text-gold-600 uppercase">
+          Recursos parroquiales
+        </p>
+        <h1 id="t-hero-descargas" class="mt-2 font-display text-display font-bold text-ink">
+          Documentos y archivos para descargar
+        </h1>
+        <p class="mt-4 text-body text-ink-soft">
+          Encuentra aquí boletines informativos, guías de oración, formularios y material pastoral
+          publicado por la parroquia.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    {
+      archivos.length === 0 ? (
+        <div class="rounded-band border border-dashed border-line bg-surface-alt p-10 text-center">
+          <span class="mx-auto grid size-14 place-items-center rounded-pill bg-gold-100 text-gold-600">
+            <Icon name="book-open" size={28} />
+          </span>
+          <h2 class="mt-4 font-display text-h3 font-bold text-ink">
+            No hay documentos publicados por ahora
+          </h2>
+          <p class="mx-auto mt-2 max-w-md text-small text-ink-soft">
+            Cuando el despacho parroquial publique boletines, hojas dominicales o formatos para
+            descargar, aparecerán en esta sección.
+          </p>
+        </div>
+      ) : (
+        <ul class="grid gap-4 sm:grid-cols-2" role="list">
+          {archivos.map((archivo) => (
+            <li class="flex">
+              <article class="flex flex-1 flex-col justify-between gap-4 rounded-card border border-line bg-surface p-6 shadow-card sm:flex-row sm:items-center">
+                <div class="flex items-start gap-4">
+                  <span class="grid size-12 shrink-0 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                    <Icon name="book-open" size={22} />
+                  </span>
+                  <div>
+                    <span class="text-overline font-semibold tracking-wider text-gold-600 uppercase">
+                      {archivo.categoria} · {formatBytes(archivo.tamano_bytes)}
+                    </span>
+                    <h2 class="mt-1 font-display text-h3 font-bold text-ink">{archivo.titulo}</h2>
+                    {archivo.descripcion && (
+                      <p class="mt-1 text-small text-ink-soft">{archivo.descripcion}</p>
+                    )}
+                    <p class="mt-1 text-overline text-muted">{archivo.nombre_archivo}</p>
+                  </div>
+                </div>
+
+                <a
+                  href={archivo.archivo_url}
+                  download={archivo.nombre_archivo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-pill bg-olive-700 px-5 text-small font-semibold text-on-dark no-underline transition-colors hover:bg-olive-600"
+                >
+                  <span>Descargar</span>
+                  <Icon name="arrow-right" size={15} />
+                </a>
+              </article>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

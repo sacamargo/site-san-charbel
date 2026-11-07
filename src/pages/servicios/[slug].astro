@@ -1,0 +1,201 @@
+---
+/**
+ * /servicios/[slug] — Ficha de orientación y formulario de solicitud para cada
+ * sacramento o servicio parroquial.
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ServiceRequestForm from '@/components/blocks/ServiceRequestForm.astro';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Watermark from '@/components/ui/Watermark.astro';
+import { formatHoras } from '@/lib/format';
+import { getDespacho, getHorariosPorTipo } from '@/lib/queries/horarios';
+import { getServicioPorSlug, getServicios } from '@/lib/queries/servicios';
+import { getSiteSettings } from '@/lib/queries/settings';
+
+const { slug = '' } = Astro.params;
+const servicio = await getServicioPorSlug(slug);
+
+if (!servicio) {
+  return Astro.redirect('/servicios', 302);
+}
+
+const todosServicios = await getServicios();
+const otrosServicios = todosServicios.filter((s) => s.slug !== servicio.slug);
+const despacho = await getDespacho();
+const horariosConfesion = await getHorariosPorTipo('confesion');
+const parroquia = await getSiteSettings();
+---
+
+<BaseLayout
+  title={servicio.nombre}
+  description={`${servicio.nombre} en la ${parroquia.nombre}: ${servicio.descripcion}`}
+>
+  <section class="relative isolate overflow-hidden bg-sand-soft" aria-labelledby="t-servicio">
+    <Watermark class="-right-12 -bottom-20 w-36 rotate-[125deg] text-olive-700 opacity-10" />
+    <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+      <nav aria-label="Migas de pan" class="text-small text-ink-soft">
+        <ol class="flex flex-wrap items-center gap-2">
+          <li>
+            <a href="/" class="text-gold-600 no-underline hover:underline">Inicio</a>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li>
+            <a href="/servicios" class="text-gold-600 no-underline hover:underline">Servicios</a>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li aria-current="page" class="font-semibold text-ink">{servicio.nombre}</li>
+        </ol>
+      </nav>
+
+      <div class="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start">
+        <span class="grid size-16 shrink-0 place-items-center rounded-pill bg-surface text-gold-600 shadow-card">
+          <Icon name={servicio.icono} size={30} />
+        </span>
+        <div class="max-w-2xl">
+          <h1 id="t-servicio" class="font-display text-display font-bold text-ink">
+            {servicio.nombre}
+          </h1>
+          <p class="mt-2 font-display text-h3 italic text-gold-600">{servicio.descripcion}</p>
+          <p class="mt-4 text-body text-ink-soft">{servicio.introduccion}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20">
+    <div class="grid gap-10 lg:grid-cols-[1.5fr_1fr]">
+      {/* Orientación y pasos */}
+      <section aria-labelledby="t-orientacion">
+        <h2 id="t-orientacion" class="font-display text-h2 font-bold text-ink">
+          Orientación y pasos
+        </h2>
+        <span class="mt-3 block h-0.5 w-14 rounded-pill bg-gold-500" aria-hidden="true"></span>
+
+        <ol class="mt-6 space-y-4">
+          {
+            servicio.orientacion.map((paso, idx) => (
+              <li class="flex items-start gap-4 rounded-card border border-line bg-surface p-5 shadow-card">
+                <span class="grid size-9 shrink-0 place-items-center rounded-pill bg-gold-100 font-display text-small font-bold text-gold-600">
+                  {idx + 1}
+                </span>
+                <p class="text-body text-ink-soft">{paso}</p>
+              </li>
+            ))
+          }
+        </ol>
+
+        <div class="mt-6 rounded-card border border-sand bg-surface-alt p-5">
+          <p class="text-small font-semibold text-ink">Modalidad de atención</p>
+          <p class="mt-1 text-small text-ink-soft">{servicio.atencion}</p>
+        </div>
+      </section>
+
+      {/* Tarjeta de despacho y horarios */}
+      <aside class="space-y-6" aria-label="Atención en despacho parroquial">
+        <div class="rounded-card border border-line bg-surface p-6 shadow-card">
+          <h2 class="font-display text-h3 font-bold text-ink">Canales del despacho parroquial</h2>
+
+          {
+            servicio.slug === 'confesion' && horariosConfesion.length > 0 && (
+              <div class="mt-4 rounded-card bg-sand-soft p-4">
+                <p class="text-overline font-semibold tracking-wider text-gold-600 uppercase">
+                  Horario de confesiones
+                </p>
+                {horariosConfesion.map((hc) => (
+                  <p class="mt-1 text-small text-ink">
+                    <strong>{hc.dia}:</strong> {formatHoras(hc.horas, ' · ')}
+                    {hc.nota ? ` (${hc.nota})` : ''}
+                  </p>
+                ))}
+              </div>
+            )
+          }
+
+          {
+            despacho && (
+              <div class="mt-4 rounded-card bg-surface-alt p-4">
+                <p class="text-overline font-semibold tracking-wider text-gold-600 uppercase">
+                  Horario de despacho
+                </p>
+                <p class="mt-1 text-small text-ink">
+                  <strong>{despacho.dia}:</strong> {despacho.nota || formatHoras(despacho.horas)}
+                </p>
+              </div>
+            )
+          }
+
+          <ul class="mt-5 space-y-3 text-small text-ink-soft" role="list">
+            <li class="flex items-start gap-3">
+              <span class="mt-0.5 text-gold-600"><Icon name="map-pin" size={18} /></span>
+              <span>
+                {parroquia.direccion}, {parroquia.barrio}, {parroquia.ciudad}
+              </span>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-gold-600"><Icon name="phone" size={18} /></span>
+              <a
+                href={`tel:${parroquia.telefonoMovil.replace(/\D/g, '')}`}
+                class="min-h-11 inline-flex items-center font-semibold text-gold-600 no-underline hover:underline"
+              >
+                {parroquia.telefonoMovil} / {parroquia.telefonoFijo}
+              </a>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="text-gold-600"><Icon name="mail" size={18} /></span>
+              <a
+                href={`mailto:${parroquia.email}`}
+                class="min-h-11 inline-flex items-center font-semibold text-gold-600 no-underline hover:underline"
+              >
+                {parroquia.email}
+              </a>
+            </li>
+          </ul>
+
+          <div class="mt-6">
+            <Button href="#formulario-peticion" class="w-full">
+              Enviar solicitud para {servicio.nombre}
+            </Button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    {/* Formulario específico preseleccionado */}
+    <div class="mt-14">
+      <ServiceRequestForm
+        servicioPreseleccionado={servicio.slug}
+        titulo={`Solicitar ${servicio.nombre}`}
+        subtitulo={`Completa tus datos y tu mensaje sobre ${servicio.nombre}. El despacho parroquial recibirá tu petición en el panel y en su correo Gmail para orientarte.`}
+        returnTo={`/servicios/${servicio.slug}`}
+      />
+    </div>
+
+    {/* Otros servicios */}
+    <section class="mt-16" aria-labelledby="t-otros-servicios">
+      <h2 id="t-otros-servicios" class="font-display text-h2 font-bold text-ink">
+        Otros servicios de la parroquia
+      </h2>
+      <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          otrosServicios.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="flex items-center gap-4 rounded-card border border-line bg-surface p-4 text-ink no-underline shadow-card transition-shadow hover:shadow-lift"
+              >
+                <span class="grid size-11 shrink-0 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                  <Icon name={item.icono} size={20} />
+                </span>
+                <div>
+                  <p class="font-display text-h3 font-bold text-ink">{item.nombre}</p>
+                  <p class="text-small text-ink-soft">{item.descripcion}</p>
+                </div>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</BaseLayout>

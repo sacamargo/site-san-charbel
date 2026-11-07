@@ -1,0 +1,315 @@
+---
+/**
+ * /admin/comercios — Gestión del directorio para promocionar los negocios y
+ * emprendimientos de las personas de la iglesia (`community_businesses`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'create') {
+    const nombre = String(form.get('nombre') ?? '').trim();
+    const categoria = String(form.get('categoria') ?? 'Servicios').trim() || 'Servicios';
+    const descripcion = String(form.get('descripcion') ?? '').trim();
+    const propietario = String(form.get('propietario') ?? '').trim() || null;
+    const telefono = String(form.get('telefono') ?? '').trim() || null;
+    const whatsapp = String(form.get('whatsapp') ?? '').trim() || null;
+    const direccion = String(form.get('direccion') ?? '').trim() || null;
+    const horario = String(form.get('horario') ?? '').trim() || null;
+    const sitio_web = String(form.get('sitio_web') ?? '').trim() || null;
+    const instagram = String(form.get('instagram') ?? '').trim() || null;
+    const imagenUrlInput = String(form.get('imagen_url') ?? '').trim() || null;
+    const destacado = form.get('destacado') === 'on';
+    const file = form.get('imagen_file');
+
+    if (!nombre || !descripcion) {
+      errorMsg = 'El nombre del negocio y su descripción son obligatorios.';
+    } else {
+      let imagen_url = imagenUrlInput;
+
+      if (file instanceof File && file.size > 0) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const buffer = new Uint8Array(await file.arrayBuffer());
+        const { error: upErr } = await supabase.storage
+          .from('community-businesses')
+          .upload(path, buffer, {
+            contentType: file.type || 'image/jpeg',
+            upsert: false,
+          });
+        if (upErr) {
+          errorMsg = `No se pudo subir la imagen: ${upErr.message}`;
+        } else {
+          const { data: pub } = supabase.storage.from('community-businesses').getPublicUrl(path);
+          imagen_url = pub.publicUrl;
+        }
+      }
+
+      if (!errorMsg) {
+        const { error } = await supabase.from('community_businesses').insert({
+          nombre,
+          categoria,
+          descripcion,
+          propietario,
+          telefono,
+          whatsapp,
+          direccion,
+          horario,
+          sitio_web,
+          instagram,
+          imagen_url,
+          destacado,
+          activo: true,
+        });
+        if (error) errorMsg = error.message;
+        else notice = 'Negocio publicado en el directorio comunitario.';
+      }
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const activo = form.get('activo') === 'true';
+    const { error } = await supabase
+      .from('community_businesses')
+      .update({ activo: !activo })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Visibilidad actualizada.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('community_businesses').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Negocio eliminado del directorio.';
+  }
+}
+
+const { data: businesses, error: listError } = await supabase
+  .from('community_businesses')
+  .select('*')
+  .order('destacado', { ascending: false })
+  .order('orden', { ascending: true });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Negocios de las personas de la iglesia"
+  subtitle="Promociona los emprendimientos, comercios y servicios profesionales de los feligreses."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Registrar negocio o emprendimiento</h2>
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Nombre del negocio *</span>
+        <input
+          name="nombre"
+          required
+          placeholder="Ej. Panadería Libanesa El Cedro"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Categoría *</span>
+        <select
+          name="categoria"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        >
+          <option value="Gastronomía y alimentos">Gastronomía y alimentos</option>
+          <option value="Servicios profesionales">Servicios profesionales</option>
+          <option value="Salud y bienestar">Salud y bienestar</option>
+          <option value="Hogar y construcción">Hogar y construcción</option>
+          <option value="Comercio y regalos">Comercio y regalos</option>
+          <option value="Educación y asesorías">Educación y asesorías</option>
+          <option value="Tecnología y diseño">Tecnología y diseño</option>
+          <option value="Otros servicios">Otros servicios</option>
+        </select>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Descripción de productos o servicios *</span>
+        <textarea
+          name="descripcion"
+          rows="3"
+          required
+          placeholder="Describe qué ofrece el negocio a la comunidad…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Nombre del feligrés / familia</span>
+        <input
+          name="propietario"
+          placeholder="Ej. Familia Haddad"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">WhatsApp / Teléfono de contacto</span>
+        <input
+          name="whatsapp"
+          placeholder="Ej. 300 123 4567"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Dirección o barrio</span>
+        <input
+          name="direccion"
+          placeholder="Ej. Villa Carolina, Barranquilla"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Horario de atención</span>
+        <input
+          name="horario"
+          placeholder="Ej. Lunes a sábado 8:00 a.m. - 6:00 p.m."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Sitio web o enlace de Instagram</span>
+        <input
+          type="url"
+          name="sitio_web"
+          placeholder="https://instagram.com/..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Subir logo o foto del negocio</span>
+        <input type="file" name="imagen_file" accept="image/*" class="mt-1 block w-full text-small" />
+      </label>
+
+      <label class="flex items-center gap-2.5 sm:col-span-2">
+        <input type="checkbox" name="destacado" class="size-5 accent-olive-700" />
+        <span class="text-small font-semibold text-ink">
+          Destacar este emprendimiento en los primeros lugares de la portada
+        </span>
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Publicar negocio en la web
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Negocios registrados ({businesses?.length ?? 0})
+    </h2>
+    {
+      !businesses?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          Aún no hay negocios publicados. Agrega el primero arriba para mostrarlo en la portada y en
+          /emprendimientos.
+        </p>
+      ) : (
+        <ul class="mt-4 space-y-3" role="list">
+          {businesses.map((biz) => (
+            <li class="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-center gap-4">
+                {biz.imagen_url && (
+                  <img
+                    src={biz.imagen_url}
+                    alt=""
+                    class="size-16 shrink-0 rounded-lg border border-line object-cover"
+                  />
+                )}
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                      {biz.categoria}
+                    </span>
+                    <span class="text-overline text-muted">
+                      {biz.activo ? 'Publicado' : 'Oculto'}
+                    </span>
+                  </div>
+                  <p class="mt-1 font-display text-h3 font-bold text-ink">{biz.nombre}</p>
+                  <p class="text-small text-ink-soft">
+                    {[biz.propietario, biz.whatsapp, biz.direccion].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle" />
+                  <input type="hidden" name="id" value={biz.id} />
+                  <input type="hidden" name="activo" value={String(biz.activo)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                  >
+                    {biz.activo ? 'Ocultar' : 'Publicar'}
+                  </button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('¿Eliminar este negocio?');">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={biz.id} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                  >
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

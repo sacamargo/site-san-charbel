@@ -1,0 +1,150 @@
+---
+/**
+ * Espacio para promocionar los negocios y emprendimientos de las personas de la
+ * iglesia (`community_businesses`, gestionado desde `/admin/comercios`).
+ */
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import SectionTitle from '@/components/ui/SectionTitle.astro';
+import { getComercios } from '@/lib/queries/comercios';
+
+interface Props {
+  limite?: number;
+  mostrarVerTodos?: boolean;
+}
+
+const { limite = 6, mostrarVerTodos = true } = Astro.props;
+const comercios = await getComercios(limite);
+---
+
+<section
+  id="emprendimientos"
+  class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20"
+  aria-labelledby="t-comercios"
+>
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <SectionTitle id="t-comercios">Emprendimientos de nuestra comunidad</SectionTitle>
+      <p class="mt-3 max-w-2xl text-body text-ink-soft">
+        Apoyamos el trabajo y los negocios de las familias que forman parte de la Parroquia San
+        Chárbel.
+      </p>
+    </div>
+
+    {
+      mostrarVerTodos && (
+        <Button variant="outline" href="/emprendimientos" iconEnd="arrow-right">
+          Ver directorio completo
+        </Button>
+      )
+    }
+  </div>
+
+  {
+    comercios.length === 0 ? (
+      <div class="mt-8 flex flex-col items-center justify-between gap-6 rounded-band border border-dashed border-line bg-surface-alt p-8 text-center md:flex-row md:text-left">
+        <div class="flex flex-col items-center gap-4 md:flex-row">
+          <span class="grid size-14 shrink-0 place-items-center rounded-pill bg-gold-100 text-gold-600">
+            <Icon name="users" size={26} />
+          </span>
+          <div>
+            <h3 class="font-display text-h3 font-bold text-ink">
+              ¿Tienes un negocio o servicio y eres parte de nuestra comunidad?
+            </h3>
+            <p class="mt-1 max-w-xl text-small text-ink-soft">
+              Este espacio impulsa los emprendimientos y servicios profesionales de los feligreses de
+              la parroquia. Solicita tu publicación en el directorio comunitario.
+            </p>
+          </div>
+        </div>
+        <Button href="/peticiones?servicio=emprendimiento" iconEnd="arrow-right">
+          Inscribir mi negocio
+        </Button>
+      </div>
+    ) : (
+      <ul class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {comercios.map((comercio) => {
+          const telLimpio = (comercio.whatsapp || comercio.telefono || '').replace(/\D/g, '');
+          const urlWhatsapp = telLimpio
+            ? `https://wa.me/${telLimpio.startsWith('57') ? telLimpio : `57${telLimpio}`}`
+            : null;
+
+          return (
+            <li class="flex">
+              <article class="flex flex-1 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-shadow hover:shadow-lift">
+                {comercio.imagen_url && (
+                  <img
+                    src={comercio.imagen_url}
+                    alt={`Logo o fotografía de ${comercio.nombre}`}
+                    loading="lazy"
+                    decoding="async"
+                    class="aspect-[16/10] w-full object-cover"
+                  />
+                )}
+                <div class="flex flex-1 flex-col gap-2.5 p-6">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                      {comercio.categoria}
+                    </span>
+                    {comercio.destacado && (
+                      <span class="text-overline font-semibold text-olive-700">Destacado</span>
+                    )}
+                  </div>
+
+                  <h3 class="font-display text-h3 font-bold text-ink">{comercio.nombre}</h3>
+                  <p class="text-small text-ink-soft">{comercio.descripcion}</p>
+
+                  <ul class="mt-2 space-y-1 text-small text-muted" role="list">
+                    {comercio.propietario && (
+                      <li class="flex items-center gap-2">
+                        <Icon name="users" size={14} class="text-gold-600" />
+                        <span>Familia / contacto: {comercio.propietario}</span>
+                      </li>
+                    )}
+                    {comercio.direccion && (
+                      <li class="flex items-center gap-2">
+                        <Icon name="map-pin" size={14} class="text-gold-600" />
+                        <span>{comercio.direccion}</span>
+                      </li>
+                    )}
+                    {comercio.horario && (
+                      <li class="flex items-center gap-2">
+                        <Icon name="clock" size={14} class="text-gold-600" />
+                        <span>{comercio.horario}</span>
+                      </li>
+                    )}
+                  </ul>
+
+                  <div class="mt-auto flex flex-wrap gap-3 pt-4">
+                    {urlWhatsapp && (
+                      <a
+                        href={urlWhatsapp}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-olive-700 px-4 text-small font-semibold text-on-dark no-underline transition-colors hover:bg-olive-600"
+                      >
+                        <Icon name="phone" size={15} />
+                        <span>Contactar</span>
+                      </a>
+                    )}
+                    {comercio.sitio_web && (
+                      <a
+                        href={comercio.sitio_web}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-line px-4 text-small font-semibold text-gold-600 no-underline transition-colors hover:border-olive-700 hover:text-olive-700"
+                      >
+                        <span>Visitar web</span>
+                        <Icon name="external-link" size={14} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }
+</section>

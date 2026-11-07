@@ -1,0 +1,268 @@
+---
+/**
+ * /admin/archivos — Repositorio para montar archivos y documentos descargables
+ * en la página web (`parish_files` + bucket `parish-files`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { formatBytes } from '@/lib/queries/archivos';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'create') {
+    const titulo = String(form.get('titulo') ?? '').trim();
+    const descripcion = String(form.get('descripcion') ?? '').trim();
+    const categoria = String(form.get('categoria') ?? 'Documentos').trim() || 'Documentos';
+    const urlExterna = String(form.get('archivo_url') ?? '').trim();
+    const file = form.get('archivo');
+
+    if (!titulo) {
+      errorMsg = 'El título del documento es obligatorio.';
+    } else if (file instanceof File && file.size > 0) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${Date.now()}-${safeName}`;
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await supabase.storage
+        .from('parish-files')
+        .upload(path, buffer, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        });
+
+      if (upErr) {
+        errorMsg = `No se pudo subir el archivo: ${upErr.message}`;
+      } else {
+        const { data: pub } = supabase.storage.from('parish-files').getPublicUrl(path);
+        const { error } = await supabase.from('parish_files').insert({
+          titulo,
+          descripcion,
+          categoria,
+          archivo_url: pub.publicUrl,
+          archivo_path: path,
+          nombre_archivo: file.name,
+          mime_type: file.type || 'application/octet-stream',
+          tamano_bytes: file.size,
+          publicado: true,
+        });
+        if (error) errorMsg = error.message;
+        else notice = 'Archivo subido y disponible para descarga.';
+      }
+    } else if (urlExterna) {
+      const nombre = urlExterna.split('/').pop() || 'documento';
+      const { error } = await supabase.from('parish_files').insert({
+        titulo,
+        descripcion,
+        categoria,
+        archivo_url: urlExterna,
+        archivo_path: null,
+        nombre_archivo: nombre,
+        mime_type: 'application/pdf',
+        tamano_bytes: 0,
+        publicado: true,
+      });
+      if (error) errorMsg = error.message;
+      else notice = 'Enlace de descarga publicado.';
+    } else {
+      errorMsg = 'Selecciona un archivo para subir o pega una URL de descarga.';
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const publicado = form.get('publicado') === 'true';
+    const { error } = await supabase
+      .from('parish_files')
+      .update({ publicado: !publicado })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Visibilidad del archivo actualizada.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const path = String(form.get('archivo_path') ?? '');
+    if (path) {
+      await supabase.storage.from('parish-files').remove([path]);
+    }
+    const { error } = await supabase.from('parish_files').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Archivo eliminado del repositorio.';
+  }
+}
+
+const { data: files, error: listError } = await supabase
+  .from('parish_files')
+  .select('*')
+  .order('orden', { ascending: true })
+  .order('created_at', { ascending: false });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Repositorio de archivos descargables"
+  subtitle="Sube boletines, hojas dominicales, formatos de inscripción, oraciones o PDFs para que la comunidad los descargue."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Subir nuevo archivo para descarga</h2>
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Título del documento *</span>
+        <input
+          name="titulo"
+          required
+          placeholder="Ej. Hoja Dominical / Guía de Novena a San Chárbel"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Categoría</span>
+        <select
+          name="categoria"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        >
+          <option value="Boletín y hoja dominical">Boletín y hoja dominical</option>
+          <option value="Oraciones y novenas">Oraciones y novenas</option>
+          <option value="Formularios y requisitos">Formularios y requisitos</option>
+          <option value="Catequesis y formación">Catequesis y formación</option>
+          <option value="Documentos parroquiales">Documentos parroquiales</option>
+        </select>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Descripción breve</span>
+        <input
+          name="descripcion"
+          placeholder="Indica brevemente qué contiene este archivo…"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Seleccionar archivo (PDF, Word, imagen…)</span>
+        <input type="file" name="archivo" class="mt-1 block w-full text-small" />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">O pegar enlace directo de descarga</span>
+        <input
+          type="url"
+          name="archivo_url"
+          placeholder="https://..."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2 text-small"
+        />
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Subir y publicar documento
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Archivos en el repositorio ({files?.length ?? 0})
+    </h2>
+    {
+      !files?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          No hay archivos cargados todavía. Cuando subas uno, aparecerá automáticamente en la
+          portada, en /servicios y en /descargas.
+        </p>
+      ) : (
+        <ul class="mt-4 space-y-3" role="list">
+          {files.map((f) => (
+            <li class="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-pill bg-gold-100 px-3 py-0.5 text-overline font-semibold text-gold-600 uppercase">
+                    {f.categoria}
+                  </span>
+                  <span class="text-overline text-muted">
+                    {formatBytes(Number(f.tamano_bytes ?? 0))} · {f.publicado ? 'Público' : 'Oculto'}
+                  </span>
+                </div>
+                <p class="mt-1 font-display text-h3 font-bold text-ink">{f.titulo}</p>
+                {f.descripcion && <p class="text-small text-ink-soft">{f.descripcion}</p>}
+                <a
+                  href={f.archivo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="mt-1 inline-block text-overline font-semibold text-gold-600 hover:underline"
+                >
+                  Abrir archivo ({f.nombre_archivo}) →
+                </a>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle" />
+                  <input type="hidden" name="id" value={f.id} />
+                  <input type="hidden" name="publicado" value={String(f.publicado)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                  >
+                    {f.publicado ? 'Ocultar' : 'Publicar'}
+                  </button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('¿Eliminar este archivo?');">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={f.id} />
+                  <input type="hidden" name="archivo_path" value={f.archivo_path ?? ''} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                  >
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

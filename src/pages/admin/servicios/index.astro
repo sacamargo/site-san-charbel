@@ -1,0 +1,298 @@
+---
+/**
+ * /admin/servicios — Gestión de sacramentos y servicios parroquiales
+ * (`parish_services` + formulario complementario en `site_settings`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { parseGoogleFormEmbed } from '@/lib/admin/google-form';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'save_global_form') {
+    const embedRaw = String(form.get('form_embed') ?? '');
+    const form_url = parseGoogleFormEmbed(embedRaw);
+    if (embedRaw.trim() && !form_url) {
+      errorMsg = 'El HTML o URL no corresponde a un Google Form válido (docs.google.com/forms).';
+    } else {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ id: 'default', services_form_url: form_url });
+
+      if (error) errorMsg = error.message;
+      else notice = 'Formulario externo de Google Forms actualizado.';
+    }
+  }
+
+  if (intent === 'create') {
+    const nombre = String(form.get('nombre') ?? '').trim();
+    const categoria = String(form.get('categoria') ?? 'iniciacion').trim();
+    const descripcion_corta = String(form.get('descripcion_corta') ?? '').trim();
+    const introduccion = String(form.get('introduccion') ?? '').trim();
+    const pasosRaw = String(form.get('orientacion') ?? '').trim();
+    const orientacion = pasosRaw
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const atencion = String(form.get('atencion') ?? '').trim();
+    const icono = String(form.get('icono') ?? 'cross').trim() || 'cross';
+
+    if (!nombre) {
+      errorMsg = 'El nombre del servicio o sacramento es obligatorio.';
+    } else {
+      const { error } = await supabase.from('parish_services').insert({
+        nombre,
+        slug: slugify(nombre),
+        categoria,
+        descripcion_corta,
+        introduccion,
+        orientacion,
+        atencion,
+        descripcion_modal: introduccion,
+        icono,
+        activo: true,
+      });
+      if (error) errorMsg = error.message;
+      else notice = 'Servicio creado y publicado.';
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const activo = form.get('activo') === 'true';
+    const { error } = await supabase
+      .from('parish_services')
+      .update({ activo: !activo })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Estado del servicio actualizado.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('parish_services').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Servicio eliminado.';
+  }
+}
+
+const { data: settings } = await supabase
+  .from('site_settings')
+  .select('services_form_url')
+  .eq('id', 'default')
+  .maybeSingle();
+
+const { data: services, error: listError } = await supabase
+  .from('parish_services')
+  .select('*')
+  .order('orden', { ascending: true });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+const formUrl = settings?.services_form_url ?? '';
+---
+
+<AdminLayout
+  title="Servicios y sacramentos"
+  subtitle="Gestiona las tarjetas de servicios de la portada y las páginas de detalle de cada sacramento."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Agregar servicio o sacramento</h2>
+    <form method="POST" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="intent" value="create" />
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Nombre *</span>
+        <input
+          name="nombre"
+          required
+          placeholder="Ej. Bautismo"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Icono</span>
+        <select
+          name="icono"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        >
+          <option value="droplet">Gota de agua (Bautismo)</option>
+          <option value="rings">Anillos (Matrimonio)</option>
+          <option value="chalice">Cáliz (Eucaristía)</option>
+          <option value="flame">Llama (Confirmación)</option>
+          <option value="cross">Cruz (Confesión / General)</option>
+          <option value="hands">Manos (Unción / Bendición)</option>
+          <option value="hand-heart">Corazón en mano (Pastoral)</option>
+          <option value="church">Templo (Comunidad)</option>
+        </select>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Descripción corta (para la tarjeta) *</span>
+        <input
+          name="descripcion_corta"
+          required
+          placeholder="Ej. Inicia el camino de la fe de tu hijo."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Introducción completa</span>
+        <textarea
+          name="introduccion"
+          rows="2"
+          placeholder="Explicación pastoral del servicio…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">
+          Pasos u orientación (escribe un paso por línea)
+        </span>
+        <textarea
+          name="orientacion"
+          rows="3"
+          placeholder="Paso 1…&#10;Paso 2…&#10;Paso 3…"
+          class="mt-1 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        ></textarea>
+      </label>
+
+      <label class="block sm:col-span-2">
+        <span class="text-small font-semibold text-ink">Modalidad de atención</span>
+        <input
+          name="atencion"
+          placeholder="Ej. Inscripción y orientación en el despacho parroquial."
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+
+      <div class="sm:col-span-2">
+        <button
+          type="submit"
+          class="inline-flex min-h-11 items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+        >
+          Crear servicio
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="mt-8 rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Google Form complementario (opcional)
+    </h2>
+    <p class="mt-1 text-small text-ink-soft">
+      El sitio ya incluye su propio formulario nativo conectado a la bandeja de{' '}
+      <a href="/admin/solicitudes" class="text-gold-600 underline">Formularios y peticiones</a>. Si
+      además deseas mostrar un Google Form embebido, pega aquí su URL o iframe.
+    </p>
+    <form method="POST" class="mt-4 grid gap-4">
+      <input type="hidden" name="intent" value="save_global_form" />
+      <textarea
+        name="form_embed"
+        rows="2"
+        placeholder="https://docs.google.com/forms/d/e/.../viewform?embedded=true"
+        class="w-full rounded-card border border-line bg-ivory px-3.5 py-2 font-mono text-small"
+      >{formUrl}</textarea>
+      <button
+        type="submit"
+        class="inline-flex min-h-11 w-fit items-center rounded-pill border border-olive-700 px-5 text-small font-semibold text-olive-700 hover:bg-olive-700 hover:text-on-dark"
+      >
+        Guardar Google Form opcional
+      </button>
+    </form>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Servicios registrados ({services?.length ?? 0})
+    </h2>
+    {
+      !services?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          Aún no hay filas en Supabase; el sitio muestra los 6 sacramentos iniciales por defecto.
+          Aplica el archivo de semilla SQL o agrega uno arriba.
+        </p>
+      ) : (
+        <ul class="mt-4 divide-y divide-line rounded-card border border-line bg-surface" role="list">
+          {services.map((svc) => (
+            <li class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="font-display text-h3 font-bold text-ink">{svc.nombre}</p>
+                <p class="text-small text-ink-soft">
+                  {svc.activo ? 'Activo' : 'Oculto'} · {svc.descripcion_corta}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <form method="POST">
+                  <input type="hidden" name="intent" value="toggle" />
+                  <input type="hidden" name="id" value={svc.id} />
+                  <input type="hidden" name="activo" value={String(svc.activo)} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                  >
+                    {svc.activo ? 'Desactivar' : 'Activar'}
+                  </button>
+                </form>
+                <form method="POST" onsubmit="return confirm('¿Eliminar este servicio?');">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={svc.id} />
+                  <button
+                    type="submit"
+                    class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                  >
+                    Eliminar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

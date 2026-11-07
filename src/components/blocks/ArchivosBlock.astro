@@ -1,0 +1,77 @@
+---
+/**
+ * Bloque público de documentos y recursos descargables (`parish_files`,
+ * gestionado desde `/admin/archivos`).
+ */
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import SectionTitle from '@/components/ui/SectionTitle.astro';
+import { formatBytes, getArchivosPublicados } from '@/lib/queries/archivos';
+
+interface Props {
+  limite?: number;
+  mostrarEnlaceRepositorio?: boolean;
+}
+
+const { limite = 4, mostrarEnlaceRepositorio = true } = Astro.props;
+const archivos = await getArchivosPublicados(limite);
+---
+
+{
+  archivos.length > 0 && (
+    <section
+      id="descargas"
+      class="mx-auto max-w-(--container-page) px-4 py-14 md:px-6 md:py-20"
+      aria-labelledby="t-descargas"
+    >
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <SectionTitle id="t-descargas">Documentos y descargas</SectionTitle>
+          <p class="mt-3 max-w-2xl text-body text-ink-soft">
+            Boletines parroquiales, guías de oración, hojas dominicales y formatos para descargar.
+          </p>
+        </div>
+
+        {mostrarEnlaceRepositorio && (
+          <Button variant="link" href="/descargas" iconEnd="arrow-right">
+            Ver todos los documentos
+          </Button>
+        )}
+      </div>
+
+      <ul class="mt-8 grid gap-4 sm:grid-cols-2" role="list">
+        {archivos.map((archivo) => (
+          <li class="flex">
+            <article class="flex flex-1 flex-col justify-between gap-4 rounded-card border border-line bg-surface p-5 shadow-card sm:flex-row sm:items-center">
+              <div class="flex items-start gap-4">
+                <span class="grid size-12 shrink-0 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                  <Icon name="book-open" size={22} />
+                </span>
+                <div>
+                  <span class="text-overline font-semibold tracking-wider text-gold-600 uppercase">
+                    {archivo.categoria} · {formatBytes(archivo.tamano_bytes)}
+                  </span>
+                  <h3 class="mt-0.5 font-display text-h3 font-bold text-ink">{archivo.titulo}</h3>
+                  {archivo.descripcion && (
+                    <p class="mt-1 text-small text-ink-soft">{archivo.descripcion}</p>
+                  )}
+                </div>
+              </div>
+
+              <a
+                href={archivo.archivo_url}
+                download={archivo.nombre_archivo}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-pill border border-olive-700 px-5 text-small font-semibold text-olive-700 no-underline transition-colors hover:bg-olive-700 hover:text-on-dark"
+              >
+                <span>Descargar</span>
+                <Icon name="arrow-right" size={15} />
+              </a>
+            </article>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

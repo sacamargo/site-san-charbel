@@ -1,0 +1,152 @@
+---
+/**
+ * /agenda/[slug] — Ficha de detalle de una celebración, mostrando el flyer
+ * completo sin recorte.
+ */
+import { Image } from 'astro:assets';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import { formatHora, formatRangoFechas } from '@/lib/format';
+import { getCelebracionPorSlug } from '@/lib/queries/celebraciones';
+
+const { slug = '' } = Astro.params;
+const celebracion = await getCelebracionPorSlug(slug);
+
+if (!celebracion) {
+  return Astro.redirect('/agenda', 302);
+}
+---
+
+<BaseLayout
+  title={celebracion.titulo}
+  description={celebracion.resumen || `Celebración en la Parroquia San Chárbel: ${celebracion.titulo}`}
+>
+  <div class="mx-auto max-w-(--container-page) px-4 py-12 md:px-6 md:py-16">
+    <nav aria-label="Migas de pan" class="text-small text-ink-soft">
+      <ol class="flex flex-wrap items-center gap-2">
+        <li>
+          <a href="/" class="text-gold-600 no-underline hover:underline">Inicio</a>
+        </li>
+        <li aria-hidden="true">/</li>
+        <li>
+          <a href="/agenda" class="text-gold-600 no-underline hover:underline">Agenda</a>
+        </li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page" class="font-semibold text-ink">{celebracion.titulo}</li>
+      </ol>
+    </nav>
+
+    <article class="mt-8 grid items-start gap-10 lg:grid-cols-[1fr_1.1fr]">
+      {/* Flyer completo sin recorte */}
+      <div class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+        {
+          celebracion.imagen ? (
+            <Image
+              src={celebracion.imagen}
+              alt={`Flyer de ${celebracion.titulo}`}
+              widths={[600, 1200]}
+              sizes="(min-width: 1024px) 540px, 100vw"
+              class="h-auto w-full object-contain"
+            />
+          ) : celebracion.imagen_url ? (
+            <img
+              src={celebracion.imagen_url}
+              alt={`Flyer de ${celebracion.titulo}`}
+              class="h-auto w-full object-contain"
+            />
+          ) : (
+            <div class="grid aspect-square place-items-center bg-surface-alt p-8 text-center">
+              <span class="grid size-14 place-items-center rounded-pill bg-gold-100 text-gold-600">
+                <Icon name="calendar-days" size={28} />
+              </span>
+              <p class="mt-3 font-display text-h3 font-bold text-ink">{celebracion.titulo}</p>
+            </div>
+          )
+        }
+      </div>
+
+      {/* Información completa */}
+      <div>
+        {
+          celebracion.categoria && (
+            <span class="inline-block rounded-pill bg-gold-100 px-3.5 py-1 text-overline font-semibold tracking-wider text-gold-600 uppercase">
+              {celebracion.categoria}
+            </span>
+          )
+        }
+
+        <h1 class="mt-3 font-display text-display font-bold text-ink">{celebracion.titulo}</h1>
+
+        <ul class="mt-6 space-y-3 rounded-card border border-line bg-surface p-6 text-body text-ink-soft shadow-card" role="list">
+          <li class="flex items-center gap-3">
+            <Icon name="calendar-days" size={20} class="text-gold-600" />
+            <span class="font-semibold text-ink">
+              {formatRangoFechas(celebracion.fecha_inicio, celebracion.fecha_fin)}
+            </span>
+          </li>
+          {
+            celebracion.hora && (
+              <li class="flex items-center gap-3">
+                <Icon name="clock" size={20} class="text-gold-600" />
+                <span>{formatHora(celebracion.hora)}</span>
+              </li>
+            )
+          }
+          {
+            celebracion.lugar && (
+              <li class="flex items-center gap-3">
+                <Icon name="map-pin" size={20} class="text-gold-600" />
+                <span>{celebracion.lugar}</span>
+              </li>
+            )
+          }
+          {
+            celebracion.dirigido_a && (
+              <li class="flex items-center gap-3">
+                <Icon name="users" size={20} class="text-gold-600" />
+                <span>Dirigido a: {celebracion.dirigido_a}</span>
+              </li>
+            )
+          }
+        </ul>
+
+        {
+          celebracion.resumen && (
+            <p class="mt-6 text-body text-ink-soft">{celebracion.resumen}</p>
+          )
+        }
+
+        {
+          celebracion.contenido && (
+            <div class="mt-4 whitespace-pre-line text-body text-ink-soft">
+              {celebracion.contenido}
+            </div>
+          )
+        }
+
+        {
+          celebracion.cita && (
+            <blockquote class="mt-6 rounded-card border border-gold-300 bg-sand-soft p-6">
+              <p class="font-display text-h3 italic text-ink">«{celebracion.cita}»</p>
+              {celebracion.cita_referencia && (
+                <footer class="mt-2 text-small font-semibold text-gold-600">
+                  — {celebracion.cita_referencia}
+                </footer>
+              )}
+            </blockquote>
+          )
+        }
+
+        <div class="mt-8 flex flex-wrap gap-4">
+          <Button href="/peticiones#formulario-peticion" icon="mail">
+            Consultar o inscribirme
+          </Button>
+          <Button variant="outline" href="/agenda">
+            Volver a la agenda completa
+          </Button>
+        </div>
+      </div>
+    </article>
+  </div>
+</BaseLayout>

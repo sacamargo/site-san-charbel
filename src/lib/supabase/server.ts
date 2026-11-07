@@ -1,38 +1,71 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
+import { isPlaceholderSupabaseConfig, resilientSupabaseFetch } from '@/db/supabase';
+import { wrapWithHybridFallback } from '@/lib/admin/local-store';
 import type { AstroCookies } from 'astro';
 
+/**
+ * Cliente SSR con cookies — autenticación y operaciones protegidas del
+ * dashboard (/admin y subdominio admin.*).
+ */
+export function hasSupabaseConfig(): boolean {
+  const url =
+    import.meta.env.SUPABASE_URL ?? import.meta.env.PUBLIC_SUPABASE_URL;
+  const key =
+    import.meta.env.SUPABASE_KEY ??
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return !isPlaceholderSupabaseConfig(url, key);
+}
+
 function getSupabaseConfig() {
-	const url = import.meta.env.PUBLIC_SUPABASE_URL;
-	const publishableKey = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url =
+    import.meta.env.SUPABASE_URL ??
+    import.meta.env.PUBLIC_SUPABASE_URL;
+  const key =
+    import.meta.env.SUPABASE_KEY ??
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-	if (!url || !publishableKey) {
-		throw new Error(
-			'Supabase is not configured. Copy .env.example to .env and add the project URL and publishable key.',
-		);
-	}
+  if (isPlaceholderSupabaseConfig(url, key)) {
+    return {
+      url: 'http://127.0.0.1:54321',
+      key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.local-placeholder',
+    };
+  }
 
-	return { url, publishableKey };
+  return { url: url!, key: key! };
 }
 
 export function createSupabaseServerClient({
-	request,
-	cookies,
+  request,
+  cookies,
 }: {
-	request: Request;
-	cookies: AstroCookies;
+  request: Request;
+  cookies: AstroCookies;
 }) {
-	const { url, publishableKey } = getSupabaseConfig();
+  const { url, key } = getSupabaseConfig();
+  const isHttps = new URL(request.url).protocol === 'https:';
+  const cookieDomain = import.meta.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
 
-	return createServerClient(url, publishableKey, {
-		cookies: {
-			getAll() {
-				return parseCookieHeader(request.headers.get('Cookie') ?? '');
-			},
-			setAll(cookiesToSet) {
-				cookiesToSet.forEach(({ name, value, options }) => {
-					cookies.set(name, value, options);
-				});
-			},
-		},
-	});
+  const rawClient = createServerClient(url, key, {
+    global: {
+      fetch: resilientSupabaseFetch,
+    },
+    cookies: {
+      getAll() {
+        return parseCookieHeader(request.headers.get('Cookie') ?? '');
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookies.set(name, value, {
+            ...options,
+            path: options?.path ?? '/',
+            sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+            secure: options?.secure ?? isHttps,
+            ...(cookieDomain ? { domain: cookieDomain } : {}),
+          });
+        });
+      },
+    },
+  });
+
+  return wrapWithHybridFallback(hasSupabaseConfig() ? rawClient : null);
 }

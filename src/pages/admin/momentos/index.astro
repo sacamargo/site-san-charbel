@@ -1,0 +1,181 @@
+---
+/**
+ * /admin/momentos — Gestión de fotografías de Momentos de la parroquia
+ * (`gallery_moments` + bucket `moments`).
+ */
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const supabase = createSupabaseServerClient({
+  request: Astro.request,
+  cookies: Astro.cookies,
+});
+
+let notice: string | null = null;
+let errorMsg: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+
+  if (intent === 'create') {
+    const alt = String(form.get('alt') ?? '').trim();
+    const file = form.get('imagen');
+    if (!(file instanceof File) || file.size === 0) {
+      errorMsg = 'Selecciona una fotografía.';
+    } else {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await supabase.storage.from('moments').upload(path, buffer, {
+        contentType: file.type || 'image/jpeg',
+        upsert: false,
+      });
+      if (upErr) {
+        errorMsg = upErr.message;
+      } else {
+        const { data: pub } = supabase.storage.from('moments').getPublicUrl(path);
+        const { error } = await supabase.from('gallery_moments').insert({
+          imagen_url: pub.publicUrl,
+          alt: alt || 'Momento de la comunidad parroquial',
+          publicado: true,
+        });
+        if (error) errorMsg = error.message;
+        else notice = 'Fotografía subida al carrusel de momentos.';
+      }
+    }
+  }
+
+  if (intent === 'toggle') {
+    const id = String(form.get('id') ?? '');
+    const publicado = form.get('publicado') === 'true';
+    const { error } = await supabase
+      .from('gallery_moments')
+      .update({ publicado: !publicado })
+      .eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Estado actualizado.';
+  }
+
+  if (intent === 'delete') {
+    const id = String(form.get('id') ?? '');
+    const { error } = await supabase.from('gallery_moments').delete().eq('id', id);
+    if (error) errorMsg = error.message;
+    else notice = 'Fotografía eliminada.';
+  }
+}
+
+const { data: moments, error: listError } = await supabase
+  .from('gallery_moments')
+  .select('*')
+  .order('orden', { ascending: true })
+  .order('created_at', { ascending: false });
+
+if (listError && !errorMsg) {
+  errorMsg = listError.message.includes('Could not find')
+    ? 'Falta aplicar la migración SQL en Supabase.'
+    : listError.message;
+}
+
+const email = Astro.locals.adminUser?.email ?? null;
+---
+
+<AdminLayout
+  title="Momentos de la parroquia"
+  subtitle="Sube nuevas fotografías para el carrusel de Momentos de la portada."
+  email={email}
+>
+  {
+    notice && (
+      <p class="mb-6 rounded-card border border-olive-700/30 bg-sand-soft px-4 py-3 text-small font-semibold text-ink" role="status">
+        {notice}
+      </p>
+    )
+  }
+  {
+    errorMsg && (
+      <p class="mb-6 rounded-card border border-gold-300 bg-gold-100 px-4 py-3 text-small font-semibold text-gold-600" role="alert">
+        {errorMsg}
+      </p>
+    )
+  }
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <h2 class="font-display text-h3 font-bold text-ink">Subir nueva fotografía</h2>
+    <form method="POST" enctype="multipart/form-data" class="mt-4 grid gap-4">
+      <input type="hidden" name="intent" value="create" />
+      <label class="block">
+        <span class="text-small font-semibold text-ink">Archivo de imagen *</span>
+        <input type="file" name="imagen" accept="image/*" required class="mt-1 block w-full text-small" />
+      </label>
+      <label class="block">
+        <span class="text-small font-semibold text-ink">
+          Descripción de la escena (texto alternativo accesible) *
+        </span>
+        <input
+          name="alt"
+          required
+          placeholder="Ej. Comunidad reunida durante la celebración dominical"
+          class="mt-1 min-h-11 w-full rounded-card border border-line bg-ivory px-3.5 py-2"
+        />
+      </label>
+      <button
+        type="submit"
+        class="inline-flex min-h-11 w-fit items-center rounded-pill bg-olive-700 px-6 py-3 text-small font-semibold text-on-dark hover:bg-olive-600"
+      >
+        Subir fotografía
+      </button>
+    </form>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="font-display text-h3 font-bold text-ink">
+      Fotografías cargadas ({moments?.length ?? 0})
+    </h2>
+    {
+      !moments?.length ? (
+        <p class="mt-4 text-small text-ink-soft">
+          Las fotos nuevas que subas aquí se suman a las fotografías del repositorio en el carrusel
+          de la portada.
+        </p>
+      ) : (
+        <ul class="mt-4 grid gap-4 sm:grid-cols-2" role="list">
+          {moments.map((m) => (
+            <li class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+              <img src={m.imagen_url} alt={m.alt} class="aspect-[4/3] w-full object-cover" />
+              <div class="flex items-center justify-between gap-2 p-4">
+                <div>
+                  <p class="text-small font-semibold text-ink">{m.alt}</p>
+                  <p class="text-overline text-muted">{m.publicado ? 'Publicada' : 'Oculta'}</p>
+                </div>
+                <div class="flex gap-2">
+                  <form method="POST">
+                    <input type="hidden" name="intent" value="toggle" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="publicado" value={String(m.publicado)} />
+                    <button
+                      type="submit"
+                      class="inline-flex min-h-11 items-center rounded-pill border border-olive-700 px-4 text-small font-semibold text-olive-700"
+                    >
+                      {m.publicado ? 'Ocultar' : 'Publicar'}
+                    </button>
+                  </form>
+                  <form method="POST" onsubmit="return confirm('¿Eliminar esta foto?');">
+                    <input type="hidden" name="intent" value="delete" />
+                    <input type="hidden" name="id" value={m.id} />
+                    <button
+                      type="submit"
+                      class="inline-flex min-h-11 items-center rounded-pill border border-line px-4 text-small font-semibold text-ink-soft"
+                    >
+                      Eliminar
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</AdminLayout>

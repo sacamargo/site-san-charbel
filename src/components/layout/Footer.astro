@@ -8,8 +8,9 @@
  */
 import Brand from './Brand.astro';
 import { navegacion } from '@/data/navigation';
-import { parroquia } from '@/data/parroquia';
+import { getSiteSettings } from '@/lib/queries/settings';
 
+const parroquia = await getSiteSettings();
 const anio = new Date().getFullYear();
 
 const redes = [
@@ -92,7 +93,7 @@ const trazos: Record<string, string> = {
         </ul>
 
         <p class="mt-6 font-display text-[0.95rem] italic text-on-dark-muted">
-          «Que el Señor de los Milagros y San Chárbel guíen y bendigan a nuestra comunidad.»
+          {parroquia.footerCita}
         </p>
       </div>
     </div>

@@ -9,6 +9,11 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      watch: {
+        ignored: ['**/.agents/vendor/**', '**/.vercel/**', '**/dist/**'],
+      },
+    },
   },
 
   // Tipografía self-hosted, sin dependencias añadidas: Astro descarga los

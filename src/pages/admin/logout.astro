@@ -1,0 +1,22 @@
+---
+import { MASTER_SESSION_COOKIE } from '@/lib/admin/auth';
+import { createSupabaseServerClient, hasSupabaseConfig } from '@/lib/supabase/server';
+
+if (Astro.request.method === 'POST') {
+  Astro.cookies.delete(MASTER_SESSION_COOKIE, { path: '/' });
+
+  if (hasSupabaseConfig()) {
+    try {
+      const supabase = createSupabaseServerClient({
+        request: Astro.request,
+        cookies: Astro.cookies,
+      });
+      await supabase.auth.signOut();
+    } catch {
+      // Continuar con redirección al login
+    }
+  }
+}
+
+return Astro.redirect('/admin/login', 302);
+---
