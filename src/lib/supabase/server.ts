@@ -1,4 +1,5 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
+import { resilientSupabaseFetch } from '@/db/supabase';
 import type { AstroCookies } from 'astro';
 
 /**
@@ -16,16 +17,13 @@ export function hasSupabaseConfig(): boolean {
 
 function getSupabaseConfig() {
   const url =
-    import.meta.env.SUPABASE_URL ?? import.meta.env.PUBLIC_SUPABASE_URL;
+    import.meta.env.SUPABASE_URL ??
+    import.meta.env.PUBLIC_SUPABASE_URL ??
+    'http://127.0.0.1:54321';
   const key =
     import.meta.env.SUPABASE_KEY ??
-    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      'Supabase no está configurado. Copia .env.example a .env y define SUPABASE_URL y SUPABASE_KEY.',
-    );
-  }
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.local-placeholder';
 
   return { url, key };
 }
@@ -42,6 +40,9 @@ export function createSupabaseServerClient({
   const cookieDomain = import.meta.env.ADMIN_COOKIE_DOMAIN?.trim() || undefined;
 
   return createServerClient(url, key, {
+    global: {
+      fetch: resilientSupabaseFetch,
+    },
     cookies: {
       getAll() {
         return parseCookieHeader(request.headers.get('Cookie') ?? '');

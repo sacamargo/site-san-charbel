@@ -50,13 +50,15 @@ import fachadaTemplo from '@/assets/fachada-templo.jpg';
  */
 const EVENTOS_EN_PORTADA = 5;
 
-const eventos = await getProximasCelebraciones(EVENTOS_EN_PORTADA);
-const totalEventos = await contarCelebraciones();
+const [eventos, totalEventos, misas, servicios, parroquia, heroSlides] = await Promise.all([
+  getProximasCelebraciones(EVENTOS_EN_PORTADA),
+  contarCelebraciones(),
+  getMisas(),
+  getServicios(),
+  getSiteSettings(),
+  getHeroSlides(),
+]);
 const mostrandoTodos = totalEventos < EVENTOS_EN_PORTADA;
-const misas = await getMisas();
-const servicios = await getServicios();
-const parroquia = await getSiteSettings();
-const heroSlides = await getHeroSlides();
 
 ---
 

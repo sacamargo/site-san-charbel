@@ -77,11 +77,28 @@ export function matchesMasterCredentials(email: string, password: string): boole
 }
 
 export async function getAdminSession(request: Request, cookies: AstroCookies) {
-  const supabase = hasSupabaseConfig()
-    ? createSupabaseServerClient({ request, cookies })
-    : null;
+  const supabase = createSupabaseServerClient({ request, cookies });
+  const masterCookie = cookies.get(MASTER_SESSION_COOKIE)?.value;
+  const masterSession = verifyMasterSessionToken(masterCookie);
 
-  if (supabase) {
+  if (masterSession) {
+    const fallbackUser = {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: masterSession.email,
+      app_metadata: { role: 'admin' },
+      user_metadata: { role: 'admin' },
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    } as unknown as User;
+
+    return {
+      supabase,
+      user: fallbackUser,
+      isAdmin: true,
+    };
+  }
+
+  if (hasSupabaseConfig()) {
     try {
       const {
         data: { user },
@@ -104,27 +121,8 @@ export async function getAdminSession(request: Request, cookies: AstroCookies) {
         };
       }
     } catch {
-      // Continuar a verificación de sesión maestra firmada
+      // Sin sesión activa en Supabase
     }
-  }
-
-  const masterCookie = cookies.get(MASTER_SESSION_COOKIE)?.value;
-  const masterSession = verifyMasterSessionToken(masterCookie);
-  if (masterSession) {
-    const fallbackUser = {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: masterSession.email,
-      app_metadata: { role: 'admin' },
-      user_metadata: { role: 'admin' },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as unknown as User;
-
-    return {
-      supabase,
-      user: fallbackUser,
-      isAdmin: true,
-    };
   }
 
   return { supabase, user: null, isAdmin: false };
