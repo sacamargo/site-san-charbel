@@ -185,6 +185,7 @@ const mensajes: Record<string, string> = {
           <label class="block">
             <span class="text-small font-semibold text-ink">Usuario / Correo electrónico</span>
             <input
+              id="login-email"
               type="email"
               name="email"
               required
@@ -236,6 +237,18 @@ const mensajes: Record<string, string> = {
             <span>Entrar al Dashboard</span>
             <Icon name="arrow-right" size={16} />
           </button>
+
+          {
+            import.meta.env.DEV && (
+              <button
+                type="button"
+                data-quick-fill
+                class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-pill border border-sand bg-sand-soft px-4 py-2 text-small font-semibold text-ink transition-colors hover:border-olive-700"
+              >
+                <span>Autocompletar credenciales y entrar (Modo local)</span>
+              </button>
+            )
+          }
         </form>
 
         <div class="mt-6 border-t border-line pt-5 text-center">
@@ -251,14 +264,24 @@ const mensajes: Record<string, string> = {
     </main>
 
     <script>
+      const emailInput = document.getElementById('login-email') as HTMLInputElement | null;
       const pwInput = document.getElementById('login-password') as HTMLInputElement | null;
       const toggleBtn = document.querySelector<HTMLButtonElement>('[data-toggle-pw]');
+      const quickFillBtn = document.querySelector<HTMLButtonElement>('[data-quick-fill]');
 
       if (pwInput && toggleBtn) {
         toggleBtn.addEventListener('click', () => {
           const showing = pwInput.type === 'text';
           pwInput.type = showing ? 'password' : 'text';
           toggleBtn.textContent = showing ? 'Mostrar' : 'Ocultar';
+        });
+      }
+
+      if (emailInput && pwInput && quickFillBtn) {
+        quickFillBtn.addEventListener('click', () => {
+          emailInput.value = 'admin@parroquiasancharbel.org';
+          pwInput.value = 'SanCharbel2026!';
+          emailInput.closest('form')?.requestSubmit();
         });
       }
     </script>

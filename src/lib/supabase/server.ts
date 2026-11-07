@@ -1,5 +1,5 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
-import { resilientSupabaseFetch } from '@/db/supabase';
+import { isPlaceholderSupabaseConfig, resilientSupabaseFetch } from '@/db/supabase';
 import type { AstroCookies } from 'astro';
 
 /**
@@ -12,20 +12,25 @@ export function hasSupabaseConfig(): boolean {
   const key =
     import.meta.env.SUPABASE_KEY ??
     import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return Boolean(url && key);
+  return !isPlaceholderSupabaseConfig(url, key);
 }
 
 function getSupabaseConfig() {
   const url =
     import.meta.env.SUPABASE_URL ??
-    import.meta.env.PUBLIC_SUPABASE_URL ??
-    'http://127.0.0.1:54321';
+    import.meta.env.PUBLIC_SUPABASE_URL;
   const key =
     import.meta.env.SUPABASE_KEY ??
-    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.local-placeholder';
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  return { url, key };
+  if (isPlaceholderSupabaseConfig(url, key)) {
+    return {
+      url: 'http://127.0.0.1:54321',
+      key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.local-placeholder',
+    };
+  }
+
+  return { url: url!, key: key! };
 }
 
 export function createSupabaseServerClient({
