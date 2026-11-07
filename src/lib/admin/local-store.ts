@@ -1,16 +1,15 @@
 /**
- * Motor híbrido de persistencia local y serverless (`.astro/local-cms-store.json`
- * en desarrollo local, `/tmp/san-charbel-cms-store.json` + memoria en Vercel).
+ * Motor híbrido de persistencia en memoria (`globalThis.__sanCharbelStore`).
  *
  * Permite que todos los módulos del Dashboard (`/admin/*`) y las secciones
  * públicas funcionen al 100% de inmediato (lectura, creación, edición,
  * eliminación y subida de imágenes/archivos) tanto en local como en Vercel,
  * incluso antes de ejecutar la migración SQL en Supabase.
+ *
+ * No utiliza `node:fs` para ser 100% compatible con el empaquetador serverless
+ * `@vercel/nft` de `@astrojs/vercel`.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
 import { archivosIniciales } from '@/data/archivos';
 import { celebraciones } from '@/data/celebraciones';
 import { comerciosIniciales } from '@/data/comercios';
@@ -35,21 +34,17 @@ interface StoreData {
   service_requests: Row[];
   profiles: Row[];
   _localModifiedTables: string[];
+  _uploadedDataUrls: Record<string, string>;
 }
 
-const isVercel = Boolean(typeof process !== 'undefined' && process.env?.VERCEL);
-const STORE_FILE = isVercel
-  ? join(tmpdir(), 'san-charbel-cms-store.json')
-  : join(process.cwd(), '.astro', 'local-cms-store.json');
-const UPLOADS_ROOT = isVercel
-  ? join(tmpdir(), 'san-charbel-uploads')
-  : join(process.cwd(), 'public', 'uploads');
+const GLOBAL_KEY = '__sanCharbelCmsStoreV1';
 
 function buildInitialStore(): StoreData {
   const now = new Date().toISOString();
 
   return {
     _localModifiedTables: [],
+    _uploadedDataUrls: {},
     profiles: [
       {
         user_id: '00000000-0000-0000-0000-000000000001',
@@ -247,39 +242,17 @@ function buildInitialStore(): StoreData {
   };
 }
 
-let memoryStore: StoreData | null = null;
-
 function loadStore(): StoreData {
-  if (memoryStore) return memoryStore;
-  try {
-    if (existsSync(STORE_FILE)) {
-      const raw = readFileSync(STORE_FILE, 'utf-8');
-      const parsed = JSON.parse(raw) as StoreData;
-      const defaults = buildInitialStore();
-      memoryStore = {
-        ...defaults,
-        ...parsed,
-        _localModifiedTables: parsed._localModifiedTables ?? [],
-      };
-      return memoryStore;
-    }
-  } catch {
-    // Reconstruir desde semillas
+  const g = globalThis as unknown as Record<string, StoreData | undefined>;
+  if (!g[GLOBAL_KEY]) {
+    g[GLOBAL_KEY] = buildInitialStore();
   }
-
-  memoryStore = buildInitialStore();
-  saveStore(memoryStore);
-  return memoryStore;
+  return g[GLOBAL_KEY]!;
 }
 
 function saveStore(store: StoreData): void {
-  memoryStore = store;
-  try {
-    mkdirSync(dirname(STORE_FILE), { recursive: true });
-    writeFileSync(STORE_FILE, JSON.stringify(store, null, 2), 'utf-8');
-  } catch {
-    // En entornos serverless se mantiene también en memoryStore
-  }
+  const g = globalThis as unknown as Record<string, StoreData | undefined>;
+  g[GLOBAL_KEY] = store;
 }
 
 function getTableRows(store: StoreData, table: string): Row[] {
@@ -682,43 +655,43 @@ function wrapStorageBucket(bucket: string, remoteBucket: any) {
           const res = await remoteBucket.upload(path, body, options);
           if (!res?.error) return res;
         } catch {
-          // Caer a almacenamiento local
+          // Caer a almacenamiento en memoria (data URL)
         }
       }
 
       try {
         const safePath = path.replace(/\.\./g, '').replace(/^\/+/, '');
-        const fullPath = join(UPLOADS_ROOT, bucket, safePath);
-        mkdirSync(dirname(fullPath), { recursive: true });
         const bytes =
           body instanceof Uint8Array
             ? body
             : new Uint8Array(body as ArrayBuffer);
-        writeFileSync(fullPath, bytes);
-        return { data: { path: `/uploads/${bucket}/${safePath}` }, error: null };
+        const mime = options?.contentType || 'application/octet-stream';
+        const base64 = Buffer.from(bytes).toString('base64');
+        const store = loadStore();
+        store._uploadedDataUrls[`${bucket}/${safePath}`] = `data:${mime};base64,${base64}`;
+        saveStore(store);
+        return { data: { path: safePath }, error: null };
       } catch (err) {
         return {
           data: null,
-          error: { message: err instanceof Error ? err.message : 'Error al guardar archivo' },
+          error: { message: err instanceof Error ? err.message : 'Error al procesar archivo' },
         };
       }
     },
 
     getPublicUrl(path: string) {
       const safePath = path.replace(/\.\./g, '').replace(/^\/+/, '');
-      const localFile = join(UPLOADS_ROOT, bucket, safePath);
-      if (existsSync(localFile) || path.startsWith('/uploads/')) {
-        const publicUrl = path.startsWith('/uploads/')
-          ? path
-          : `/uploads/${bucket}/${safePath}`;
-        return { data: { publicUrl } };
+      const store = loadStore();
+      const dataUrl = store._uploadedDataUrls[`${bucket}/${safePath}`];
+      if (dataUrl) {
+        return { data: { publicUrl: dataUrl } };
       }
 
       if (remoteBucket && typeof remoteBucket.getPublicUrl === 'function') {
         return remoteBucket.getPublicUrl(path);
       }
 
-      return { data: { publicUrl: `/uploads/${bucket}/${safePath}` } };
+      return { data: { publicUrl: `/favicon.png` } };
     },
 
     async remove(paths: string[]) {
@@ -726,18 +699,15 @@ function wrapStorageBucket(bucket: string, remoteBucket: any) {
         try {
           await remoteBucket.remove(paths);
         } catch {
-          // Continuar con limpieza local
+          // Continuar
         }
       }
+      const store = loadStore();
       for (const p of paths) {
-        try {
-          const safePath = p.replace(/\.\./g, '').replace(/^\/+/, '');
-          const localFile = join(UPLOADS_ROOT, bucket, safePath);
-          if (existsSync(localFile)) unlinkSync(localFile);
-        } catch {
-          // Ignorar
-        }
+        const safePath = p.replace(/\.\./g, '').replace(/^\/+/, '');
+        delete store._uploadedDataUrls[`${bucket}/${safePath}`];
       }
+      saveStore(store);
       return { data: paths, error: null };
     },
   };
